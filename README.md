@@ -13,6 +13,8 @@
 
 ## 安装和使用
 
+前往 [GitHub Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.2.0-test.1) 下载 `Understanding-Map-0.2.0-test.1.zip`，解压后使用。当前仓库为私有，下载者需要仓库访问权限。
+
 测试包包含 Mac 的 `01-Install.command`、`02-Start.command` 和 Windows 的 `01-Install.cmd`、`02-Start.cmd`。接收者先安装 Codex 桌面版与 Python 3.9+。Mac 构建要求 Apple Silicon 和 macOS 15+，首次使用需要授予辅助功能权限。Windows 使用原生环境及 .NET Framework 4.8。
 
 首次运行安装入口，以后运行启动入口并保持终端开启。在当前 Codex 聊天发送下面的指令。
