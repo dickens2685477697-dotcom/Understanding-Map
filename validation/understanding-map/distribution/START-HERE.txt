@@ -1,0 +1,55 @@
+Understanding Map 0.2.0 测试分发包
+
+把原始 ZIP 发给对方即可，对方解压到固定目录后使用。
+支持 Apple Silicon Mac（macOS 15+）和原生 Windows 10/11。
+需要 Codex 桌面版，以及 Python 3.9 或更新版本。
+Python 官方下载 https://www.python.org/downloads/
+
+首次使用
+
+1. Mac 双击 01-Install.command，Windows 双击 01-Install.cmd。
+   Skill 安装到个人目录 ~/.agents/skills/understanding-map。
+   同名旧 Skill 存在时，安装器会提示处理，避免产生重复 Skill。
+2. Mac 安装器会打开权限辅助程序。按系统提示授予辅助功能权限。
+   Windows 使用原生 UI Automation。请让 Codex 与辅助程序以同一普通用户运行。
+3. 双击对应平台的 02-Start，保持终端窗口开启。
+4. 在 Codex 当前聊天发送下面这句话。
+
+   $understanding-map 为当前聊天开启理解地图，初始化已有历史并打开右侧面板
+
+5. 右侧地图出现后，点击节点定位原文。
+   若 Skill 没出现在 Codex 中，重启 Codex 后重试。
+   Codex 若请求访问 ~/.understanding-map，这是保存本地地图所用的目录。
+
+以后使用
+
+双击 02-Start，再向 Codex 发送下面这句话。
+
+   $understanding-map 打开理解地图
+
+服务已经运行时，重复启动会提示已运行。Ctrl+C 可以停止服务。
+若端口 18766 被另一份地图服务占用，先在旧服务终端停止它。
+
+数据和费用
+
+本包只包含程序、Skill 和说明。接收者在自己的电脑生成独立地图。
+个人地图和聊天原文保存在 ~/.understanding-map。重新分享时请发送原始 ZIP。
+地图生成与更新使用 Codex。点击节点的定位操作运行本机代码。
+Skill 默认每 5 轮完整对话更新一次，仅在 Codex 执行相关流程时运行。
+
+验证状态
+
+Mac 较长消息和短用户消息已由作者电脑上的用户实测跳转成功。
+安装、重复安装、隔离数据、协议和打包内容已在临时目录检查。
+Windows 辅助程序已交叉编译并验证纯协议，Windows 原生跳转仍需接收者实测。
+Windows 安装环境若缺少 .NET Framework 4.8，请先安装 Microsoft 官方运行时。
+
+这是私人测试包，Mac 辅助程序使用本地签名，尚未完成 Apple Developer ID 公证。
+系统若阻止启动，请保留提示并反馈作者。面向公众分发还需要正式签名和公证。
+本测试包包含源码，Windows/MapNavigator.cs 和 payload 下的脚本可供检查。
+
+参考
+
+OpenAI Skill 安装位置 https://learn.chatgpt.com/docs/build-skills
+OpenAI Windows 桌面版 https://learn.chatgpt.com/docs/windows/windows-app
+Apple 分发要求 https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution

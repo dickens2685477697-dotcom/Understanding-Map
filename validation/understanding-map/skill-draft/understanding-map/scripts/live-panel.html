@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Understanding Map</title>
+<style>
+:root{color-scheme:light dark;--bg:light-dark(#fff,#1e1f22);--fg:light-dark(#1d1e21,#eceef1);--muted:light-dark(#8b8e93,#a9adb4);--accent:light-dark(#3478f6,#77aaff);--selected:light-dark(#fff,#111);font:14px -apple-system,BlinkMacSystemFont,sans-serif}
+body{margin:0;background:var(--bg);color:var(--fg)}main{padding:8px}button{border:0;background:transparent;color:var(--muted);padding:7px 10px;border-radius:9px;font:inherit;cursor:pointer}button[aria-pressed=true]{background:var(--accent);color:var(--selected)}.controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.hint,.status{font-size:12px;color:var(--muted);line-height:1.5}.outline-group{margin-left:18px}.outline-group summary{padding:8px 0;cursor:pointer}.outline-leaf{display:flex;gap:12px;align-items:baseline;padding:8px 10px 8px 24px}.num{color:var(--muted);font-variant-numeric:tabular-nums;flex:0 0 25px}.status{margin-top:16px}.time-wrap{overflow-x:auto}.time-layout{display:grid;min-width:max-content}.time-graph{grid-row:1;grid-column:1}.time-rows{grid-row:1;grid-column:2;display:grid}.time-leaf{display:flex;gap:8px;padding:0 12px;min-width:260px;align-items:center}.role{color:var(--muted);font-size:12px}
+button.node-button{width:100%;text-align:left;color:var(--fg);background:transparent;border-radius:6px;line-height:1.45}button.node-button:hover{background:light-dark(#f2f4f7,#303237)}button.node-button[aria-pressed=true]{background:light-dark(#eaf1ff,#243754);color:var(--fg)}button.node-button:focus-visible,.source-panel button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.node-label{min-width:0;overflow-wrap:anywhere}.node-action{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap;opacity:0}button.node-button:hover .node-action,button.node-button:focus-visible .node-action,button.node-button[aria-pressed=true] .node-action{opacity:1}.time-graph circle{cursor:pointer}.time-graph circle:hover,.time-graph circle[aria-pressed=true]{stroke:var(--accent);stroke-width:4;stroke-opacity:.25}.source-panel{position:sticky;top:0;z-index:2;margin:0 0 12px;padding:12px;background:var(--bg);border:1px solid light-dark(#e2e4e8,#42454b);border-radius:10px;box-shadow:0 4px 12px light-dark(#0000000d,#00000040)}.source-panel[hidden]{display:none}.source-header{display:flex;align-items:center;justify-content:space-between;gap:8px}.source-header strong{font-weight:600}.source-header button{padding:2px 6px}.source-text{max-height:150px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0;font:inherit;line-height:1.55}.source-help{font-size:12px;color:var(--muted);line-height:1.5}.source-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.source-actions button{padding:4px 8px;background:light-dark(#f2f4f7,#303237);color:var(--fg);border-radius:6px}.source-actions button:disabled{opacity:.5;cursor:default}
+</style>
+</head><body><main>
+<div class="controls"><button type="button" data-mode="outline" aria-pressed="true">按层级</button><button type="button" data-mode="time" aria-pressed="false">按时间</button><span class="hint">大纲视图：按话题组织，数字是原始对话顺序</span></div>
+<section class="source-panel" id="source-panel" aria-label="对话原文" hidden><div class="source-header"><strong>对话原文</strong><button type="button" id="source-close" aria-label="关闭原文">✕</button></div><div class="source-text" id="source-text" aria-live="polite"></div><div class="source-actions"><button type="button" id="source-copy" disabled>复制原文查找</button><span class="source-help" id="source-help">回到聊天后按 ⌘F 查找</span></div></section>
+<div id="map"></div><div class="status" role="status">等待 Skill 输出地图数据</div>
+</main><script>
+(()=>{
+ const out=document.querySelector('#map'),status=document.querySelector('.status'),hint=document.querySelector('.hint');
+ const sourcePanel=document.querySelector('#source-panel'),sourceText=document.querySelector('#source-text'),sourceCopy=document.querySelector('#source-copy'),sourceHelp=document.querySelector('#source-help');
+ const prefsKey=`understanding-map:panel:v1:${location.pathname}`;
+ function readPrefs(){try{const value=JSON.parse(localStorage.getItem(prefsKey)||'{}');return value&&typeof value==='object'?value:{}}catch{return {}}}
+ const saved=readPrefs();
+ let mode=saved.mode==='time'?'time':'outline',nodes=[],topics=[],last='',hasData=false,selectedId=typeof saved.selectedId==='string'?saved.selectedId:null,selectedSource='',nativeMode={enabled:false,mode:'native'};
+ let restoreSource=Boolean(saved.sourceOpen&&selectedId),restoreScroll=Number.isFinite(saved.scrollY)?Math.max(0,saved.scrollY):0,initialRender=true,scrollTimer=null;
+ const collapsed=new Set(Array.isArray(saved.collapsed)?saved.collapsed.filter(x=>typeof x==='string'):[]);
+ function savePrefs(){try{localStorage.setItem(prefsKey,JSON.stringify({mode,collapsed:[...collapsed],selectedId,sourceOpen:!sourcePanel.hidden,scrollY:Math.max(0,window.scrollY||0)}))}catch{}}
+ function configureGroup(group,key){group.open=!collapsed.has(key);group.addEventListener('toggle',()=>{if(group.open)collapsed.delete(key);else collapsed.add(key);savePrefs()})}
+ function syncSelection(){out.querySelectorAll('[data-node-id]').forEach(el=>el.setAttribute('aria-pressed',String(el.getAttribute('data-node-id')===selectedId)))}
+ function actionLabel(){return nativeMode.enabled?(nativeMode.mode==='dry_run'?'演练定位请求':'定位当前聊天'):'查看原文'}
+ async function checkNavigation(){try{const r=await fetch('native-navigation',{cache:'no-store'});if(!r.ok)throw Error('disabled');const v=await r.json();nativeMode={enabled:v.enabled===true,mode:v.mode==='dry_run'?'dry_run':'native'}}catch{nativeMode={enabled:false,mode:'native'}}out.querySelectorAll('.node-action').forEach(el=>el.textContent=actionLabel());out.querySelectorAll('button[data-node-id]').forEach(el=>el.setAttribute('aria-label',`${actionLabel()}：${el.querySelector('.node-label')?.textContent||''}`));return nativeMode.enabled}
+ async function navigateToNode(n){
+  sourceHelp.textContent=nativeMode.mode==='dry_run'?'正在演练定位请求…':'正在请求本机定位…';
+  try{
+   const r=await fetch('navigate',{method:'POST',headers:{'Content-Type':'application/json','X-Understanding-Map-Action':'navigate'},body:JSON.stringify({node_id:n.id})});
+   const result=await r.json();if(selectedId!==n.id)return;
+   const messages={turn_revealed:'已触发原生进度导航；具体消息位置请核对',dry_run:'定位请求演练通过（未操作 Codex）',accessibility_required:'请先手动授权本机辅助程序的辅助功能权限',app_not_running:'请先打开 Codex',chat_unverified:'无法确认目标聊天，已停止定位',rail_unavailable:'未找到原生进度导航按钮，请核对辅助功能和应用版本',ambiguous_target:'定位目标不唯一，已停止定位',navigation_failed:'原生导航未能完成',helper_disabled:'本机定位尚未启用',helper_unavailable:'本机辅助程序不可用，请先完成编译',busy:'上一次定位尚未结束，请稍后再点',timed_out:'本机定位超时，请核对当前聊天'};
+   if(result.scope==='current_window'){messages.turn_revealed='已触发当前聊天的原生进度导航；具体消息位置请核对';messages.chat_unverified='未识别到当前聊天区域，已停止定位'}
+   messages.focus_changed='前台窗口已变化，已停止定位；请在目标聊天中重试';
+   messages.chat_mismatch='当前打开的聊天与地图不一致，请回到对应聊天后重试';
+   messages.search_requested='已在当前聊天中查找原文，请核对定位位置';
+   messages.find_unavailable='未找到可用的原生聊天查找入口';
+   messages.source_unsearchable='这条消息缺少可唯一查找的片段，暂时无法精确定位';
+   messages.context_revealed='已定位到同轮回复，请核对这条短消息是否可见';
+   messages.helper_failed='本机辅助程序执行失败，请核对诊断信息';
+   messages.invalid_source='地图原文记录不可用，请刷新地图后重试';
+   messages.invalid_request='定位请求无效，请刷新地图后重试';
+   sourceHelp.textContent=result.status==='located'&&result.verified===true?'已确认原文可见':(messages[result.status]||'本机定位未完成，请核对辅助服务');
+   const d=result.diagnostics;
+   if(result.status==='search_requested'&&d?.contextual_search===true)sourceHelp.textContent='已查找同轮上下文，尚未确认短消息位置';
+   if(result.status==='helper_failed'&&d&&typeof d==='object'){
+    const details=[];
+    if(Number.isInteger(d.protocol_error)&&d.protocol_error>=1&&d.protocol_error<=6)details.push(`协议错误 ${d.protocol_error}`);
+    if(Number.isInteger(d.helper_exit_code)&&d.helper_exit_code>=0&&d.helper_exit_code<=12000)details.push(`退出码 ${d.helper_exit_code}`);
+    if(d.helper_crashed===true)details.push('程序已崩溃');
+    if(details.length)sourceHelp.textContent+=`（${details.join('，')}）`;
+   }
+   if(result.status==='find_unavailable'&&d&&typeof d==='object'){
+    const details=[];
+    if(typeof d.find_triggered==='boolean')details.push(d.find_triggered?'查找已触发':d.chat_scope_found===true?'复用已有查找':'查找未触发');
+    if(typeof d.chat_scope_found==='boolean')details.push(`聊天范围按钮${d.chat_scope_found?'已找到':'未找到'}`);
+    if(typeof d.chat_scope_pressed==='boolean')details.push(`范围切换${d.chat_scope_pressed?'已请求':'未响应'}`);
+    if(typeof d.scope_keyboard_activated==='boolean')details.push(`焦点激活${d.scope_keyboard_activated?'已发送':'未完成'}`);
+    if(typeof d.chat_scope_selected==='boolean')details.push(`聊天范围${d.chat_scope_selected?'已选中':'未选中'}`);
+    if(typeof d.find_input_found==='boolean')details.push(`输入框${d.find_input_found?'已找到':'未找到'}`);
+    if(d.focused_find_field===true)details.push('焦点输入框已确认');
+    const count=key=>Number.isInteger(d[key])&&d[key]>=0&&d[key]<=12000;
+    if(count('find_stage')&&d.find_stage>=1&&d.find_stage<=9)details.push(`步骤 ${d.find_stage}`);
+    if(count('find_fields'))details.push(`字段 ${d.find_fields}`);
+    if(count('chat_named_fields'))details.push(`聊天字段 ${d.chat_named_fields}`);
+    if(count('browser_named_fields'))details.push(`网页字段 ${d.browser_named_fields}`);
+    if(count('search_candidates'))details.push(`可用 ${d.search_candidates}`);
+    if(count('field_nodes'))details.push(`已扫描 ${d.field_nodes}`);
+    if(typeof d.field_scan_complete==='boolean')details.push(`字段扫描${d.field_scan_complete?'完整':'未完成'}`);
+    if(count('field_read_errors')&&d.field_read_errors>0)details.push(`读取失败 ${d.field_read_errors}`);
+    if(details.length)sourceHelp.textContent+=`（${details.join('，')}）`;
+   }
+   if(result.status==='chat_unverified'&&d&&typeof d==='object'){
+    const count=key=>Number.isInteger(d[key])&&d[key]>=0&&d[key]<=12000;
+    if(d.focused_window===false)sourceHelp.textContent+='（未读取到应用前台窗口）';
+    else if(d.diagnostic_version===2&&['eligible_pages','native_pages','readable_buttons','rail_buttons','target_buttons','nested_pages'].every(count)){
+     const details=[`候选 ${d.eligible_pages}/${d.native_pages}`,`按钮 ${d.readable_buttons}`];
+     if(count('labelled_buttons'))details.push(`带标签 ${d.labelled_buttons}`);
+     details.push(`导航 ${d.rail_buttons}`,`目标 ${d.target_buttons}`);
+     if(typeof d.document_scan_complete==='boolean')details.push(`页面扫描${d.document_scan_complete?'完整':'未完成'}`);
+     if(typeof d.rail_scan_complete==='boolean')details.push(`导航扫描${d.rail_scan_complete?'完整':'未完成'}`);
+     details.push(`嵌套 ${d.nested_pages}`);
+     if(count('ax_read_errors')&&d.ax_read_errors>0)details.push(`读取失败 ${d.ax_read_errors}`);
+     if(typeof d.manual_accessibility==='boolean')details.push(`控件树请求${d.manual_accessibility?'已接受':'未接受'}`);
+     if(count('file_address_pages')&&d.file_address_pages>0)details.push(`文件地址 ${d.file_address_pages}`);
+     if(count('unknown_address_pages')&&d.unknown_address_pages>0)details.push(`未知地址 ${d.unknown_address_pages}`);
+     sourceHelp.textContent+=`（诊断 2：${details.join('，')}）`;
+    }else if(['native_pages','readable_addresses','matching_pages'].every(count))sourceHelp.textContent+=`（页面 ${d.native_pages}，可读地址 ${d.readable_addresses}，匹配 ${d.matching_pages}，扫描${d.scan_complete?'完整':'未完成'}）`;
+   }
+  }catch{if(selectedId===n.id)sourceHelp.textContent='无法连接本机定位服务'}
+ }
+ async function selectNode(n,navigate=true){selectedId=n.id;selectedSource='';syncSelection();sourcePanel.hidden=false;savePrefs();sourceText.textContent='正在读取原文…';sourceCopy.disabled=true;sourceHelp.textContent='回到聊天后按 ⌘F 查找';try{const r=await fetch(`node-source?id=${encodeURIComponent(n.id)}`,{cache:'no-store'});if(!r.ok)throw Error('unavailable');const result=await r.json();if(selectedId!==n.id)return;if(typeof result.text!=='string')throw Error('invalid');selectedSource=result.text;sourceText.textContent=result.text||'这条消息没有可用的文字原文';sourceCopy.disabled=!result.text;if(navigate&&await checkNavigation()&&selectedId===n.id)await navigateToNode(n)}catch{if(selectedId!==n.id)return;sourceText.textContent='暂时无法读取这条消息的原文';sourceHelp.textContent='请稍后重试'}}
+ function makeButton(n,kind){const button=document.createElement('button');button.type='button';button.className=`${kind} node-button`;button.setAttribute('data-node-id',n.id);button.setAttribute('aria-pressed',String(n.id===selectedId));button.setAttribute('aria-label',`${actionLabel()}：${n.summary}`);button.addEventListener('click',()=>selectNode(n));return button}
+ function timeLeaf(n,index){const row=makeButton(n,'time-leaf');const num=document.createElement('span');num.className='num';num.textContent=String(index+1).padStart(2,'0');const role=document.createElement('span');role.className='role';role.textContent=n.role==='user'?'你':'AI';const label=document.createElement('span');label.className='node-label';label.textContent=n.summary;const action=document.createElement('span');action.className='node-action';action.textContent=actionLabel();row.append(num,role,label,action);return row}
+ function drawTime(){
+  const index=new Map(nodes.map((n,i)=>[n.id,i])),depth=[];
+  nodes.forEach((n,i)=>{const parents=(Array.isArray(n.parent_ids)?n.parent_ids:[]).map(id=>index.get(id)).filter(j=>Number.isInteger(j)&&j<i);depth[i]=parents.length?Math.max(...parents.map(j=>depth[j]||0))+1:0});
+  const width=Math.max(128,32+22*Math.max(0,...depth)),height=48*nodes.length,ns='http://www.w3.org/2000/svg';
+  const wrap=document.createElement('div');wrap.className='time-wrap';const layout=document.createElement('div');layout.className='time-layout';layout.style.gridTemplateColumns=`${width}px auto`;
+  const svg=document.createElementNS(ns,'svg');svg.classList.add('time-graph');svg.setAttribute('width',String(width));svg.setAttribute('height',String(height));svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('role','img');svg.setAttribute('aria-label','按消息顺序排列的承接轨道');
+  nodes.forEach((n,i)=>{const parents=(Array.isArray(n.parent_ids)?n.parent_ids:[]).map(id=>index.get(id)).filter(j=>Number.isInteger(j)&&j<i);parents.forEach(j=>{const x1=14+depth[j]*22,x2=14+depth[i]*22,y1=24+j*48,y2=24+i*48,r=Math.min(12,Math.abs(x2-x1),y2-y1),sign=Math.sign(x2-x1),p=document.createElementNS(ns,'path');p.setAttribute('d',x1===x2?`M${x1} ${y1} V${y2}`:`M${x1} ${y1} V${y2-r} Q${x1} ${y2} ${x1+sign*r} ${y2} H${x2}`);p.setAttribute('fill','none');p.setAttribute('stroke','var(--accent)');p.setAttribute('stroke-opacity','.65');p.setAttribute('stroke-width','1.5');svg.append(p)})});
+  nodes.forEach((n,i)=>{const c=document.createElementNS(ns,'circle');c.setAttribute('cx',14+depth[i]*22);c.setAttribute('cy',24+i*48);c.setAttribute('r','4');c.setAttribute('fill','var(--accent)');c.setAttribute('data-node-id',n.id);c.setAttribute('aria-pressed',String(n.id===selectedId));c.addEventListener('click',()=>selectNode(n));svg.append(c)});
+  const list=document.createElement('div');list.className='time-rows';list.style.gridTemplateRows=`repeat(${nodes.length},48px)`;nodes.forEach((n,i)=>list.append(timeLeaf(n,i)));layout.append(svg,list);wrap.append(layout);out.append(wrap);
+ }
+ function drawOutline(){
+  const root=document.createElement('details');root.className='outline-group';configureGroup(root,'root');const rootTitle=document.createElement('summary');rootTitle.textContent='Understanding Map';root.append(rootTitle);
+  const validTopics=topics.filter(t=>t&&typeof t.id==='string'&&typeof t.label==='string');const byId=new Map(validTopics.map(t=>[t.id,t]));const children=new Map(),items=new Map();
+  validTopics.forEach(t=>{const parent=typeof t.parent_id==='string'&&byId.has(t.parent_id)?t.parent_id:null;if(!children.has(parent))children.set(parent,[]);children.get(parent).push(t)});
+  let number=0;const turnNumbers=new Map(),unassigned=[];
+  nodes.forEach(n=>{if(n.role!=='user')return;if(!turnNumbers.has(n.turn_id))turnNumbers.set(n.turn_id,++number);const entry={node:n,number:turnNumbers.get(n.turn_id)};if(typeof n.topic_id==='string'&&byId.has(n.topic_id)){if(!items.has(n.topic_id))items.set(n.topic_id,[]);items.get(n.topic_id).push(entry)}else unassigned.push(entry)});
+  function appendLeaf(container,entry){const row=makeButton(entry.node,'outline-leaf');const num=document.createElement('span');num.className='num';num.textContent=String(entry.number).padStart(2,'0');const label=document.createElement('span');label.className='node-label';label.textContent=entry.node.summary;const action=document.createElement('span');action.className='node-action';action.textContent=actionLabel();row.append(num,label,action);container.append(row)}
+  const visited=new Set();function appendTopic(topic,container){if(visited.has(topic.id))return;visited.add(topic.id);const group=document.createElement('details');group.className='outline-group';configureGroup(group,`topic:${topic.id}`);const title=document.createElement('summary');title.textContent=topic.label;group.append(title);(items.get(topic.id)||[]).forEach(e=>appendLeaf(group,e));(children.get(topic.id)||[]).forEach(child=>appendTopic(child,group));if(group.children.length>1)container.append(group)}
+  (children.get(null)||[]).forEach(topic=>appendTopic(topic,root));validTopics.forEach(topic=>{if(!visited.has(topic.id))appendTopic(topic,root)});
+  if(unassigned.length){const group=document.createElement('details');group.className='outline-group';configureGroup(group,'unassigned');const title=document.createElement('summary');title.textContent='待归类';group.append(title);unassigned.forEach(e=>appendLeaf(group,e));root.append(group)}out.append(root);
+ }
+ function render(){out.replaceChildren();if(mode==='time'){hint.textContent='时间视图：按原始消息顺序排列';drawTime()}else{hint.textContent='大纲视图：按话题组织，数字是原始对话顺序';drawOutline()}}
+ function syncMode(){document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.mode===mode)))}
+ syncMode();
+ document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;syncMode();savePrefs();render()}));
+ document.querySelector('#source-close').addEventListener('click',()=>{selectedId=null;selectedSource='';sourcePanel.hidden=true;syncSelection();savePrefs()});
+ sourceCopy.addEventListener('click',async()=>{try{if(!selectedSource||!navigator.clipboard)throw Error('unavailable');await navigator.clipboard.writeText(selectedSource.slice(0,60));sourceHelp.textContent='已复制，回到聊天后按 ⌘F 粘贴查找'}catch{sourceHelp.textContent='复制失败，请选中原文手动复制'}});
+ async function refresh(){try{const r=await fetch('map-view.json',{cache:'no-store'});if(!r.ok)throw Error('unavailable');const raw=await r.text();if(raw===last)return;const v=JSON.parse(raw);if(!Array.isArray(v.nodes))throw Error('invalid');nodes=v.nodes.filter(n=>n&&typeof n.id==='string'&&typeof n.summary==='string');topics=Array.isArray(v.topics)?v.topics:[];last=raw;hasData=true;status.textContent=`已载入 ${new Set(nodes.filter(n=>n.role==='user').map(n=>n.turn_id)).size} 轮对话 · 等待下一次整理`;render();if(initialRender){initialRender=false;if(restoreSource){restoreSource=false;const selected=nodes.find(n=>n.id===selectedId);if(selected)selectNode(selected,false)}if(restoreScroll>0)requestAnimationFrame(()=>window.scrollTo(0,restoreScroll))}}catch{status.textContent=hasData?'地图服务暂不可用，保留上次的内容':'等待 Skill 输出地图数据'}}
+ window.addEventListener('scroll',()=>{clearTimeout(scrollTimer);scrollTimer=setTimeout(savePrefs,250)},{passive:true});
+ window.addEventListener('pagehide',savePrefs);
+ checkNavigation();refresh();setInterval(refresh,2500);
+})();
+</script></body></html>

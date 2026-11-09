@@ -1,0 +1,4 @@
+.src-canvas-action-button { appearance: none; border: 0; background: transparent; color: inherit; border-radius: 7px; cursor: pointer; font: inherit; font-size: 12px; line-height: 1; padding: 7px 9px; margin-left: 2px; opacity: .72; }
+.src-canvas-action-button:hover { background: color-mix(in srgb, currentColor 9%, transparent); opacity: 1; }
+.src-canvas-action-button:disabled { cursor: wait; opacity: .45; }
+.src-canvas-source-highlight { border-radius: 4px; outline: 3px solid rgba(246, 190, 58, .45) !important; background-color: rgba(246, 190, 58, .18) !important; transition: outline-color .2s, background-color .2s; }

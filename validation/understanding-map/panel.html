@@ -1,0 +1,50 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Understanding Map — 静态验证</title><style>
+:root{color-scheme:light dark;--foreground:light-dark(#1d1e21,#efefef);--muted-foreground:light-dark(#686b70,#a3a5aa);--viz-series-1:light-dark(#326ccf,#82aaf6);--background:light-dark(#fff,#1e1f22);font:14px -apple-system,BlinkMacSystemFont,sans-serif}body{margin:0;background:var(--background);color:var(--foreground)}main{padding:20px 16px}h1{font-size:16px;font-weight:600;margin:0 0 8px}.sub{font-size:12px;color:var(--muted-foreground);line-height:1.5;margin:0 0 18px}.btn{border:0;background:transparent;color:var(--foreground);padding:6px 10px;border-radius:6px;font:inherit;cursor:pointer}.btn[aria-pressed=true]{background:light-dark(#e8e9eb,#34363a)}.text-small{font-size:12px}.outline-group summary{cursor:pointer}
+</style></head><body><main><h1>Understanding Map</h1><p class="sub">静态验证 · 本次对话摘要 · 不会自动更新</p><div id="conversation-outline">
+<style>
+#conversation-outline{color:var(--foreground);max-width:760px}
+#conversation-outline .controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+#conversation-outline .hint{color:var(--muted-foreground)}
+#conversation-outline [hidden]{display:none}
+#conversation-outline .map.outline{display:block}
+#conversation-outline .map.outline .rows{display:block}
+#conversation-outline .outline-group{margin-left:18px}
+#conversation-outline .outline-group summary{padding:9px 0;cursor:pointer}
+#conversation-outline .outline-leaf{display:flex;align-items:baseline;gap:8px;padding:8px 0 8px 24px}
+#conversation-outline .outline-leaf .num{flex:0 0 25px}
+#conversation-outline .map{display:grid;grid-template-columns:208px minmax(0,1fr)}
+#conversation-outline .graph{grid-column:1;grid-row:1;width:208px;height:1152px}
+#conversation-outline .rows{grid-column:2;grid-row:1;display:grid;grid-template-rows:repeat(24,48px)}
+#conversation-outline .row{display:flex;align-items:center;gap:8px;min-width:0}
+#conversation-outline .num{color:var(--muted-foreground);font-variant-numeric:tabular-nums;flex:0 0 25px}
+#conversation-outline .title{line-height:1.25}
+#conversation-outline .note{color:var(--muted-foreground);margin-top:10px}
+@media(max-width:420px){#conversation-outline [hidden]{display:none}
+#conversation-outline .map.outline{display:block}
+#conversation-outline .map.outline .rows{display:block}
+#conversation-outline .outline-group{margin-left:18px}
+#conversation-outline .outline-group summary{padding:9px 0;cursor:pointer}
+#conversation-outline .outline-leaf{display:flex;align-items:baseline;gap:8px;padding:8px 0 8px 24px}
+#conversation-outline .outline-leaf .num{flex:0 0 25px}
+#conversation-outline .map{grid-template-columns:165px minmax(0,1fr)}#conversation-outline .graph{width:165px}}
+</style>
+<div class="controls"><button class="btn btn-ghost" type="button" data-mode="hierarchy" aria-pressed="true">按层级</button><button class="btn btn-ghost" type="button" data-mode="time" aria-pressed="false">按时间</button><span class="hint text-small" aria-live="polite">大纲视图：按话题组织，数字是原始对话顺序</span></div>
+<div class="map"><svg class="graph" viewBox="0 0 208 1152" role="img" aria-label="对话节点的承接关系地图"></svg><div class="rows"></div></div>
+<div class="note text-small">每条编号对应一条用户消息；主题分组是基于当前对话的初步整理。</div>
+<script>
+(()=>{const root=document.getElementById('conversation-outline');const data=[
+['提出理解地图与 Codex 接入',-1,0],['认可保留想法变化的历史',0,1],['指出地图看不出对话轮次',1,2],['梳理每轮信息与状态种类',2,2],['希望采用 Git 式视觉',3,3],['要求主题关联的具体例子',4,4],['指出关联线容易被误读',5,4],['反馈两个字符图仍看不清',6,4],['讨论多条关联如何展示',5,4],['认为关联线的方案不够优雅',8,4],['明确核心目标：一眼看出思维动向',0,0],['讨论多个主题和重新展开',10,3],['提出轨道与层级拐弯结合',11,3],['讨论切换到另一主问题',12,3],['讨论回到原来的主线',13,3],['提出回到 03 并展开下一层',14,3],['梳理多主题、变化等边界情况',0,1],['修正层级、承接和用户修改规则',16,1],['探索分支过多时如何折叠',16,5],['反馈示例切换没有生效',18,5],['指出示例并非真正折叠',19,5],['决定先全部呈现，不做折叠',18,5],['希望查看文本框的呈现效果',10,0],['明确使用当前完整上下文',22,0]
+];const svg=root.querySelector('svg'),rows=root.querySelector('.rows');const ns='http://www.w3.org/2000/svg';const children=data.map(()=>[]);data.forEach((d,i)=>{if(d[1]>=0)children[d[1]].push(i)});function makePath(d){const p=document.createElementNS(ns,'path');p.setAttribute('d',d);p.setAttribute('fill','none');p.setAttribute('stroke','var(--viz-series-1)');p.setAttribute('stroke-opacity','.68');p.setAttribute('stroke-width','1.5');svg.append(p)}function render(mode){
+root.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));
+root.querySelector('.hint').textContent=mode==='hierarchy'?'大纲视图：按话题组织，数字是原始对话顺序':'时间视图：从上到下是消息顺序';
+root.querySelector('.map').classList.toggle('outline',mode==='hierarchy');svg.toggleAttribute('hidden',mode==='hierarchy');
+if(mode==='hierarchy'){
+rows.replaceChildren();
+const groups=[['产品目标与定位',[0,10]],['想法变化与历史',[1]],['地图的呈现方式',[2,3,4],['消息之间如何关联',[5,6,7,8,9]]],['多主题与层级',[11,12,13,14,15]],['边界情况与地图规则',[16,17],['分支过多时如何呈现',[18,19,20,21]]],['用当前对话验证',[22,23]]];
+function makeGroup(g,container){const details=document.createElement('details');details.className='outline-group';details.open=true;const summary=document.createElement('summary');summary.textContent=g[0];details.append(summary);g[1].forEach(i=>{const row=document.createElement('div');row.className='outline-leaf';const n=document.createElement('span');n.className='num';n.textContent=String(i+1).padStart(2,'0');const label=document.createElement('span');label.textContent=data[i][0];row.append(n,label);details.append(row)});g.slice(2).forEach(child=>makeGroup(child,details));container.append(details)}
+const top=document.createElement('details');top.open=true;top.className='outline-group';const summary=document.createElement('summary');summary.textContent='Understanding Map';top.append(summary);groups.forEach(g=>makeGroup(g,top));rows.append(top);return;
+}
+const ordered=[],depth={};if(mode==='hierarchy'){function walk(i,level){ordered.push(i);depth[i]=level;children[i].forEach(c=>walk(c,level+1))}walk(0,0)}else data.forEach((_,i)=>ordered.push(i));const pos={};ordered.forEach((n,i)=>{pos[n]={x:mode==='hierarchy'?14+depth[n]*18:14+data[n][2]*20,y:24+i*48}});svg.replaceChildren();rows.replaceChildren();data.forEach((d,i)=>{if(d[1]<0)return;const a=pos[d[1]],b=pos[i];if(mode==='hierarchy'){const radius=Math.min(12,b.x-a.x,b.y-a.y);makePath(`M${a.x} ${a.y} V${b.y-radius} Q${a.x} ${b.y} ${a.x+radius} ${b.y} H${b.x}`)}else{const delta=b.x-a.x,r=Math.min(12,Math.abs(delta),b.y-a.y),sign=Math.sign(delta);makePath(delta===0?`M${a.x} ${a.y} V${b.y}`:`M${a.x} ${a.y} V${b.y-r} Q${a.x} ${b.y} ${a.x+sign*r} ${b.y} H${b.x}`)}});ordered.forEach(i=>{const d=data[i],c=document.createElementNS(ns,'circle');c.setAttribute('cx',pos[i].x);c.setAttribute('cy',pos[i].y);c.setAttribute('r','4');c.setAttribute('fill','var(--viz-series-1)');svg.append(c);const row=document.createElement('div');row.className='row';const n=document.createElement('span');n.className='num';n.textContent=String(i+1).padStart(2,'0');const text=document.createElement('span');text.className='title';text.textContent=d[0];row.append(n,text);rows.append(row)});root.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===mode)));root.querySelector('.hint').textContent=mode==='hierarchy'?'大纲视图：按话题组织，数字是原始对话顺序':'时间视图：从上到下是消息顺序'}root.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>render(b.dataset.mode)));render('hierarchy')})();
+</script>
+</div>
+</main></body></html>
