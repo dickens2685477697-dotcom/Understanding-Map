@@ -1,0 +1,10 @@
+{
+  "meta": { "title": "Understanding Map", "description": "Summarize your prompts, refresh incrementally, and jump to the original native chat." },
+  "open": "Understanding Map", "refresh": "Update map", "working": "Updating…", "empty": "Send a message, then refresh to create your map.",
+  "hint": "Your messages only · Click to return to source", "unchanged": "Up to date", "updated": "Map updated", "jumped": "Source located",
+  "missing": "The message has not mounted; navigation is unavailable", "pending": "new messages to update", "count": "prompts",
+  "outline": "By hierarchy", "time": "By time", "unassigned": "Unassigned", "locate": "Locate in chat",
+  "outlineHint": "Darker blue marks top-level topics. Lighter blue marks deeper topics. Numbers retain conversation order.",
+  "timeHint": "Deeper topics move right and become lighter. Dashed lines show time order. Solid lines show recorded message relations.",
+  "source": "Original message", "closeSource": "Close source"
+}

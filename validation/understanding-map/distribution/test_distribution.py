@@ -88,6 +88,7 @@ class DistributionTests(unittest.TestCase):
         directory = self.home / 'data'
         value = {'service':'understanding-map', 'native_enabled':True,
                  'adapter_revision':7,
+                 'refresh_enabled':True, 'refresh_revision':1,
                  'data_id':hashlib.sha256(str(directory.resolve()).encode()).hexdigest()[:16]}
         with patch.object(portable, 'urlopen', return_value=BytesIO(json.dumps(value).encode())):
             self.assertTrue(portable.service_status(directory)['ready'])

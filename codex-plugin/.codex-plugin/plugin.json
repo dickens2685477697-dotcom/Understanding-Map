@@ -1,0 +1,14 @@
+{
+  "name": "understanding-map",
+  "version": "0.3.3",
+  "description": "在聊天侧边查看理解地图，按层级或时间回看，并点击定位原文。",
+  "author": { "name": "Understanding Map" },
+  "mcpServers": "./.mcp.json",
+  "requires_local_executor": true,
+  "interface": {
+    "displayName": "Understanding Map",
+    "shortDescription": "聊天理解地图 · 层级与时间线",
+    "longDescription": "从会话侧边打开理解地图，刷新整理新增用户消息，点击节点定位到当前聊天中的原文。",
+    "brandColor": "#3478F6"
+  }
+}

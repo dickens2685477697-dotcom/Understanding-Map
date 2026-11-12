@@ -37,7 +37,8 @@ def service_status(root):
         return {'ready': False}
     expected = hashlib.sha256(str(root.resolve()).encode()).hexdigest()[:16]
     return {'ready': value.get('service') == 'understanding-map' and value.get('data_id') == expected
-            and value.get('native_enabled') is True and value.get('adapter_revision') == ADAPTER_REVISION,
+            and value.get('native_enabled') is True and value.get('adapter_revision') == ADAPTER_REVISION
+            and value.get('refresh_enabled') is True and value.get('refresh_revision') == 1,
             'port_in_use': True, 'adapter_revision': value.get('adapter_revision')}
 
 

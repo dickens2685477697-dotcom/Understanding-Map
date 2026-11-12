@@ -12,6 +12,7 @@ from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit
 
 import native_navigation
+from map_refresh import RefreshJobs
 
 ROOT = Path(__file__).resolve().parent
 TOKEN = re.compile(r'^[A-Za-z0-9_-]{32,128}$')
@@ -158,8 +159,9 @@ def reject_duplicate_keys(pairs):
     return result
 
 
-def make_handler(private_root, native_helper=None, dry_run=False):
+def make_handler(private_root, native_helper=None, dry_run=False, refresh_jobs=None):
     navigation_lock = threading.Lock()
+    refresh_jobs = refresh_jobs or RefreshJobs()
 
     class Handler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
@@ -182,10 +184,18 @@ def make_handler(private_root, native_helper=None, dry_run=False):
         def do_GET(self):
             parsed = urlsplit(self.path)
             pieces = parsed.path.split('/')
+            if len(pieces) == 3 and pieces[2] == 'refresh-status' and not parsed.query:
+                session = resolve_session(private_root, pieces[1])
+                if session is None:
+                    self.send_error(404)
+                    return
+                self.send_json(refresh_jobs.status(session[0]))
+                return
             if parsed.path == '/health' and not parsed.query:
                 data_id = hashlib.sha256(str(Path(private_root).resolve()).encode()).hexdigest()[:16]
                 self.send_json({'service': 'understanding-map', 'data_id': data_id,
                                 'adapter_revision': native_navigation.ADAPTER_REVISION,
+                                'refresh_enabled': True, 'refresh_revision': 1,
                                 'native_enabled': bool(native_helper and Path(native_helper).is_file())})
                 return
             if len(pieces) == 3 and pieces[2] == 'native-navigation' and not parsed.query:
@@ -220,13 +230,13 @@ def make_handler(private_root, native_helper=None, dry_run=False):
         def do_POST(self):
             parsed = urlsplit(self.path)
             pieces = parsed.path.split('/')
-            if len(pieces) != 3 or pieces[2] != 'navigate' or parsed.query:
+            if len(pieces) != 3 or pieces[2] not in ('navigate', 'refresh') or parsed.query:
                 self.send_error(404)
                 return
             host = self.headers.get('Host', '')
             expected_hosts = {f'127.0.0.1:{self.server.server_port}', f'localhost:{self.server.server_port}'}
             if (host not in expected_hosts or self.headers.get('Origin') != f'http://{host}'
-                    or self.headers.get('X-Understanding-Map-Action') != 'navigate'
+                    or self.headers.get('X-Understanding-Map-Action') != pieces[2]
                     or self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json'):
                 self.send_error(403)
                 return
@@ -235,6 +245,15 @@ def make_handler(private_root, native_helper=None, dry_run=False):
                 if not 1 <= size <= 2048:
                     raise ValueError('invalid_size')
                 body = json.loads(self.rfile.read(size), object_pairs_hook=reject_duplicate_keys)
+                if pieces[2] == 'refresh':
+                    if body != {}:
+                        raise ValueError('invalid_body')
+                    session = resolve_session(private_root, pieces[1])
+                    if session is None:
+                        self.send_error(404)
+                        return
+                    self.send_json(refresh_jobs.start(session[0], session[1]), 202)
+                    return
                 if (not isinstance(body, dict) or set(body) != {'node_id'}
                         or not isinstance(body['node_id'], str) or not 1 <= len(body['node_id']) <= 256):
                     raise ValueError('invalid_body')

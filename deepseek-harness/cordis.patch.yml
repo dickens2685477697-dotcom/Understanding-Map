@@ -1,0 +1,4 @@
+- insert:
+    - id: understanding-map-deepseek
+      name: '@local/understanding-map-deepseek'
+      config: {}

@@ -15,33 +15,19 @@ When asked to reopen an existing map, run `python scripts/portable.py reopen`. A
 
 Check `python scripts/portable.py status`. If the service is unavailable, the user can double-click the package's `02-Start` entry. When the user has requested running the map and the host allows it, `python scripts/portable.py serve` starts the same local service. Keep that process running. An occupied port belonging to another installation requires stopping that installation first.
 
-When a map view and service are ready, open the configuration's panel_url on the right with the desktop `open_in_codex` tool. `queued` means visibility remains unconfirmed. The panel itself handles explicit node clicks through the installed helper. Reopening a selection does not request navigation.
+When the configuration and service are ready, open the configuration's panel_url on the right with the desktop `open_in_codex` tool. `queued` means visibility remains unconfirmed. The panel itself handles explicit node clicks through the installed helper. Reopening a selection does not request navigation.
 
-## Capture completed history
+## Refresh-driven updates
 
-The user's main task takes priority. On first activation, use `read_thread` to collect all available completed history for the current trusted chat, respecting page limits and chronological order. On subsequent turns, read back only to the saved checkpoint. Capture user messages and final assistant messages. Exclude commentary, reasoning, tool calls, and agent items whose IDs begin with `call_`. Keep ambient UI metadata and access tokens out of summaries. Structured test-feedback envelopes represent the user's actual answer.
+Opening or reloading the map panel, or clicking its 更新地图 button, sends a same-origin POST to its token-scoped `refresh` endpoint. The local service resolves the source chat from that token, reads only that chat through the official Codex app-server history APIs, and runs a bounded, ephemeral Codex JSON-summary task when new user messages exist. This worker uses local Codex authentication and the configured model. An available, authenticated Codex CLI is required. macOS prefers the desktop app's bundled CLI. Other installations use `codex` on PATH, or the binary explicitly named by `UNDERSTANDING_MAP_CODEX`.
 
-The current reply is still in progress and can be captured on a later turn. Skills run while the assistant follows this workflow, so describe updates only after the corresponding files were written.
+Treat refresh as the update trigger. Do not collect or summarize chats automatically after a turn count or on unrelated assistant turns. The legacy interval field is retained for old saved data and is not a scheduling trigger. The first panel load can generate a missing map view once the configuration has been created.
 
-Pass chronological read_thread-style turns as stdin JSON to `python scripts/map_state.py ingest --state <state_file> --threshold <interval>`.
+The service records sent user messages even while an assistant reply is in progress. It retains final assistant text privately for context and native short-message positioning, and displays one summary per user message. Repeated checks reuse message IDs. Concurrent refreshes for one chat share an active job; status polling reads results without starting new jobs. Check the panel status before describing an update as complete. Preserve the last map on source/model/validation errors and report the actual status.
 
-```json
-{"session_id":"trusted-chat-id","turns":[]}
-```
+For an explicit map update request, reopen the saved panel and use its update control, or request the same token-scoped POST with the required Origin, Content-Type, and X-Understanding-Map-Action headers. Keep the token out of user-facing text. Independent source reads must match the saved source chat ID. Ephemeral summary jobs are separate from the source chat. Direct map_state.py ingest/apply remains a legacy recovery path for explicit repair, and must not run concurrently with a refresh job.
 
-An initial nonempty history is due immediately. Thereafter the default interval is five completed turns, using the saved positive interval. If `due` is false, keep the current view until the threshold or an explicit refresh request.
-
-## Update the map
-
-For every pending user and final assistant message, write one faithful concise summary with a stable node ID and its original message ID in source_ids. Reuse existing topics, add topics for distinct subjects, and leave uncertain topic or parent relationships unassigned. Resolve explicit references before linking nodes. Retain assistant nodes for the timeline. User turns appear under document-style topic headings in the outline.
-
-Pass a patch as stdin JSON to `python scripts/map_state.py apply --state <state_file>`.
-
-```json
-{"session_id":"trusted-chat-id","turn_ids":["completed-turn-id"],"topics":[{"id":"topic-id","label":"主题","parent_id":null}],"nodes":[{"id":"node-message-id","turn_id":"completed-turn-id","message_id":"message-id","role":"user","summary":"忠实摘要","topic_id":"topic-id","parent_ids":[],"source_ids":["message-id"]}]}
-```
-
-Cover every captured message in the selected completed turns once. The initial patch covers all collected history. Preserve the helper's coverage, session, and cycle checks. After a successful patch, run `python scripts/publish_view.py --state <state_file> --view <view_file> --session-id <trusted-chat-id>`.
+Topic parent_id defines conceptual hierarchy. Message parent_ids describe evidence-backed continuation. Timeline indentation and blue lightness encode topic hierarchy, with top-level topics on the left in dark blue and deeper topics farther right in lighter blue. Dashed links show time order. Reuse existing topics and leave uncertain relationships empty.
 
 ## Native navigation and verification
 

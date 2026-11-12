@@ -66,7 +66,7 @@ def initialize(directory, session_id, interval=5):
         return {'config_path': str(config_path), 'created': False, 'legacy': False}
 
     token = secrets.token_urlsafe(32)
-    config = {'version': 1, 'session_id': session_id, 'interval': interval,
+    config = {'version': 1, 'session_id': session_id, 'interval': interval, 'update_mode': 'refresh',
               'state_file': str(folder / 'state.json'), 'view_file': str(folder / 'map-view.json'),
               'view_access_token': token,
               'panel_url': 'http://127.0.0.1:18766/' + token + '/live-panel.html'}

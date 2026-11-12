@@ -1,0 +1,10 @@
+{
+  "meta": { "title": "Understanding Map 理解地图", "description": "总结你的每次提问，手动刷新增量更新，点击节点返回原生聊天。" },
+  "open": "理解地图", "refresh": "更新地图", "working": "正在更新…", "empty": "发送第一条消息后，刷新生成地图。",
+  "hint": "仅总结你的消息 · 点击返回原文", "unchanged": "已是最新", "updated": "地图已更新", "jumped": "已定位原文",
+  "missing": "消息尚未挂载，无法定位原文", "pending": "条新消息待更新", "count": "条提问",
+  "outline": "按层级", "time": "按时间", "unassigned": "待归类", "locate": "定位当前聊天",
+  "outlineHint": "深蓝为顶层，层级越深蓝色越浅，数字表示对话顺序",
+  "timeHint": "顶层靠左、深蓝，子层向右、颜色变浅。虚线表示时间顺序，实线表示已记录的承接",
+  "source": "对话原文", "closeSource": "关闭原文"
+}

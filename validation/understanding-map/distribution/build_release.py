@@ -44,7 +44,7 @@ def build(output, references):
         scripts.mkdir(parents=True)
         for name in ('init_tracker.py', 'map_state.py', 'publish_view.py', 'reopen_map.py'):
             shutil.copy2(BASE / 'skill-draft/understanding-map/scripts' / name, scripts / name)
-        for name in ('preview_server.py', 'native_navigation.py', 'live-panel.html'):
+        for name in ('preview_server.py', 'native_navigation.py', 'map_refresh.py', 'live-panel.html'):
             shutil.copy2(BASE / name, scripts / name)
         shutil.copy2(SOURCE / 'portable.py', scripts / 'portable.py')
         shutil.copy2(SOURCE / 'SKILL.md', skill / 'SKILL.md')

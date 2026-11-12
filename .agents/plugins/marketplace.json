@@ -1,0 +1,20 @@
+{
+  "name": "understanding-map-local",
+  "interface": {
+    "displayName": "Understanding Map 本地测试"
+  },
+  "plugins": [
+    {
+      "name": "understanding-map",
+      "source": {
+        "source": "local",
+        "path": "./codex-plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

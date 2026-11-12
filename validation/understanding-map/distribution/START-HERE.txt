@@ -35,7 +35,10 @@ Python 官方下载 https://www.python.org/downloads/
 本包只包含程序、Skill 和说明。接收者在自己的电脑生成独立地图。
 个人地图和聊天原文保存在 ~/.understanding-map。重新分享时请发送原始 ZIP。
 地图生成与更新使用 Codex。点击节点的定位操作运行本机代码。
-Skill 默认每 5 轮完整对话更新一次，仅在 Codex 执行相关流程时运行。
+打开或刷新地图页面、点击“更新地图”时，服务检查新增消息并运行增量摘要任务。
+内容相同时跳过模型调用，页面会显示检查、整理、成功或失败状态。
+刷新更新需要可运行且已认证的 Codex CLI。Mac 优先使用桌面应用内置 CLI。
+Windows 使用 PATH 中的 codex，或以 UNDERSTANDING_MAP_CODEX 指定可执行文件的绝对路径。
 
 验证状态
 

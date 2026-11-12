@@ -5,9 +5,7 @@ description: Track an enabled Codex desktop conversation as an Understanding Map
 
 # Understanding Map
 
-The user's main task takes priority. When conversation tracking is enabled for the current Codex desktop chat, maintain one source-linked map node for each user message and final assistant message. On first activation in a chat with existing completed history, initialize the map on the next assistant turn without waiting for the interval. After successful initialization, default to five new completed user turns per update unless the user specifies another positive interval. Keep all branches visible by default. The outline view is a document-style topic hierarchy with user turns as numbered entries; retain assistant nodes and show them in the timeline rather than nesting every user message beneath another message.
-
-A Skill is not a background listener or a scheduling guarantee: these checks happen only while the assistant is running and follows this workflow. The current reply is not complete until after the assistant finishes, so the latest turn can normally be collected on a later turn. Do not claim an update happened unless its checkpoint and view were actually written.
+The user's main task takes priority. Updates are driven by opening/reloading the map panel or explicitly clicking 更新地图. The local preview service reads the bound source chat, summarizes new user messages through an ephemeral Codex task, and publishes the map. Do not perform turn-count-driven collection or summarization during unrelated assistant turns. For configurations with update_mode set to refresh, use the service's refresh workflow, and keep the legacy checkpoint helpers below for explicit recovery only. The server needs an authenticated Codex CLI. The timeline displays one entry per user message. Topic parent_id defines hierarchy, message parent_ids describe continuation, and uncertain relationships stay unassigned.
 
 ## Reopen a previously enabled map
 

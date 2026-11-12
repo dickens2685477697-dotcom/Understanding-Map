@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-10",
+  "pluginVersion": "0.2.0",
+  "harnessVersion": "0.2.2-rc.1",
+  "platform": "macOS arm64",
+  "installation": "native plugin_manager install_bundle; enabled and applied",
+  "checks": {
+    "coreTests": 7,
+    "actualRuntimeProjectionAndStorage": "passed",
+    "chineseMetadataAndIcon": "passed",
+    "nativeRightSidebar": "passed",
+    "loggedInModelSummary": "passed",
+    "manualIncrementalRefresh": "2 -> 3 -> 4 -> 5 user-message nodes",
+    "existingNodesPreserved": "first 3 nodes unchanged after fourth message",
+    "independentTopicParent": "null",
+    "shortMessageParent": "preceding reading topic",
+    "repeatRefresh": "map and updatedAt unchanged; UI reports up to date",
+    "longMessageNavigation": "original native message visibly located",
+    "shortMessageNavigation": "two-character message visibly located",
+    "internalCommandJsonHidden": "passed",
+    "applicationRestart": "5 nodes, view, collapsed topics and source selection restored; short-message navigation passed again",
+    "codexVisualParity": "matched controls, typography, spacing, 48px rows, 22px lanes, depth-based blue palette and selection styles",
+    "hierarchyView": "native expandable topic tree; chronological message numbers retained",
+    "timeView": "dashed chronological links and solid recorded message relations rendered in native SVG",
+    "topicMigration": "all 4 old summaries and source anchors preserved while assigning 4 conceptual topics",
+    "newMessageTopics": "fifth message reused its reading topic and linked to message 3",
+    "viewPreferences": "hierarchy/time mode, collapsed topics, selected message and source visibility persist per chat"
+  },
+  "notVerified": ["Windows", "English rendered interface", "history beyond loaded page", "attachment-only messages"],
+  "scope": "Native conversation view; ordinary user text messages"
+}
