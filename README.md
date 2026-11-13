@@ -15,11 +15,11 @@
 
 ## 安装 Codex 插件
 
-已发布的测试安装包为 [0.3.3 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.3.3)，下载 `Understanding-Map-Codex-0.3.3.zip` 后解压完整文件夹。最新源码版可按下方构建说明打包安装。当前仓库为私有，下载者需要仓库访问权限，也可以接收原始 ZIP。
+已发布的测试安装包为 [0.4.3 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.4.3)，下载 `Understanding-Map-Codex-0.4.3.zip` 后解压完整文件夹。Release 同时提供 DeepSeek Harness `0.3.2` 插件 ZIP 和两端安装说明。当前仓库为私有，下载者需要仓库访问权限，也可以接收原始 ZIP。
 
 准备 Codex 桌面版、Node.js 20+、Python 3.9+，并确保 Codex CLI 已用自己的账号登录或配置 API。Mac 使用 `python3`，Windows 使用 `python`。原文定位的 Mac 辅助程序面向 Apple Silicon 和 macOS 15+，首次使用需要辅助功能权限。
 
-在解压后的 `Understanding-Map-Codex-0.3.3` 文件夹中打开终端或 PowerShell，执行以下命令。
+在解压后的 `Understanding-Map-Codex-0.4.3` 文件夹中打开终端或 PowerShell，执行以下命令。
 
 ```sh
 codex plugin marketplace add .
@@ -27,6 +27,8 @@ codex plugin add understanding-map@understanding-map-local
 ```
 
 完全退出并重新打开 Codex，在自己的聊天右侧选择“更多工具… → 理解地图”。首次打开整理聊天历史，之后打开或刷新地图、点击“更新地图”时整理新增用户消息。安装包内的 `START-HERE.md` 包含完整说明及 Mac 内置 CLI 的替代命令。
+
+从旧版升级时，先完全退出 Codex，在新版解压目录重新执行上面两条命令，再重开应用。
 
 生成和更新摘要使用每位接收者自己的模型额度。个人地图和聊天原文保存在自己的 `~/.understanding-map`。
 

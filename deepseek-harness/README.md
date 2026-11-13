@@ -19,6 +19,8 @@
 
 ## 安装
 
+从 [0.4.3 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.4.3) 下载 `Understanding-Map-DeepSeek-0.3.2.zip`，解压到准备长期保留的位置，按包内 `START-HERE.md` 安装。
+
 在 Harness 中使用其原生 `plugin_manager` 工具：
 
 ```json
@@ -46,4 +48,4 @@ node --check client.js
 
 安装一次后正常打开 Harness，在聊天顶部点击「理解地图」。首次打开会为该聊天生成地图，后续发送新消息后点击「更新地图」。使用「按层级」和「按时间」切换阅读方式，直接点击摘要返回原文，包括很短的消息。视图、话题折叠和选择状态会按聊天保存。
 
-本机是链接安装，源码目录需要保留。插件管理器中可查看版本或停用插件。它不依赖 Codex 账号或 Codex 的本机导航辅助服务。
+链接安装需要保留插件目录。插件管理器中可查看版本或停用插件。它不依赖 Codex 账号或 Codex 的本机导航辅助服务。

@@ -83,6 +83,10 @@ codex plugin add understanding-map@understanding-map-local
 "/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex" plugin add understanding-map@understanding-map-local
 ```
 
+## 从旧版升级
+
+先完全退出 Codex，再解压新版 ZIP 到准备长期保留的位置。在新版文件夹中重新执行上面的 `codex plugin marketplace add .` 和 `codex plugin add understanding-map@understanding-map-local`，然后重新打开 Codex 与地图。
+
 ## 日常使用
 
 在 Codex 的聊天侧边打开“理解地图”。首次打开整理该聊天历史，之后打开或刷新地图、点击“更新地图”时检查新增用户消息。摘要前显示询问、想法、需求、反馈、确认中的主要意图，承接设想的“开始做”按需求理解。旧地图更新时补齐缺失标签。内容相同且标签齐全时复用结果。点击节点请求定位原文。
