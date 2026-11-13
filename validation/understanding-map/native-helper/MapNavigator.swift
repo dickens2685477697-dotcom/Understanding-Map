@@ -611,6 +611,9 @@ func focusNativeDocument(_ root: AXUIElement, app: AXUIElement, window: AXUIElem
 
 func openNativeFind(_ root: AXUIElement, app: AXUIElement, window: AXUIElement,
                     pid: pid_t, excluding: Set<String>) -> Bool {
+    // A node click leaves focus in the embedded map. Restore native document
+    // focus before the menu decides which find surface to open.
+    _ = focusNativeDocument(root, app: app, window: window, pid: pid, excluding: excluding)
     // The native menu may initially select browser search. No query is written
     // until the explicit chat scope and its labelled field are confirmed below.
     if let bar = attribute(app, kAXMenuBarAttribute as String), CFGetTypeID(bar) == AXUIElementGetTypeID() {
@@ -677,6 +680,16 @@ func findInCurrentChat(_ root: AXUIElement, request: NavigationRequest, excludin
     var diagnostics: [String: Any] = ["find_triggered": false, "chat_scope_found": false,
                                      "chat_scope_pressed": false, "find_input_found": false,
                                      "query_written": false, "find_stage": 1, "contextual_search": contextual]
+    var input: AXUIElement?
+    var findRoot = root
+    func captureFocusedInput(until deadline: Date) -> Bool {
+        guard let focused = focusedChatField(app: app, window: window, thread: request.thread_id,
+                                            excluding: excluding, until: deadline) else { return false }
+        input = focused.0
+        findRoot = focused.1
+        diagnostics["focused_find_field"] = true
+        return true
+    }
     func checkFocus() {
         if !sameFocusedWindow(app, window: window, pid: pid) { respond("focus_changed", method: method) }
         if Date() >= commandDeadline {
@@ -685,11 +698,12 @@ func findInCurrentChat(_ root: AXUIElement, request: NavigationRequest, excludin
         }
     }
     checkFocus()
+    _ = captureFocusedInput(until: min(Date().addingTimeInterval(0.4), commandDeadline))
     var scopes = walk(root, within: 0.6, excluding: excluding, stayInDocument: true) {
         isButton($0) && hasExactLabel($0, chatScopeLabels)
     }
-    guard scopes.complete else { respond("find_unavailable", diagnostics: diagnostics, method: method) }
-    if scopes.matches.isEmpty {
+    guard input != nil || scopes.complete else { respond("find_unavailable", diagnostics: diagnostics, method: method) }
+    if input == nil && scopes.matches.isEmpty {
         diagnostics["find_stage"] = 2
         guard openNativeFind(root, app: app, window: window, pid: pid, excluding: excluding) else {
             respond("find_unavailable", diagnostics: diagnostics, method: method)
@@ -699,54 +713,57 @@ func findInCurrentChat(_ root: AXUIElement, request: NavigationRequest, excludin
         let deadline = min(Date().addingTimeInterval(2), commandDeadline)
         repeat {
             checkFocus()
-            scopes = walk(root, within: min(0.6, max(0, deadline.timeIntervalSinceNow)), excluding: excluding, stayInDocument: true) {
+            if captureFocusedInput(until: min(Date().addingTimeInterval(0.4), deadline)) { break }
+            guard Date() < deadline else { break }
+            let refreshed = walk(root, within: min(0.6, deadline.timeIntervalSinceNow), excluding: excluding, stayInDocument: true) {
                 isButton($0) && hasExactLabel($0, chatScopeLabels)
             }
+            if refreshed.complete { scopes = refreshed }
             if scopes.complete && scopes.matches.count == 1 { break }
             Thread.sleep(forTimeInterval: 0.1)
         } while Date() < deadline
     }
-    guard scopes.complete, scopes.matches.count == 1 else { respond("find_unavailable", diagnostics: diagnostics, method: method) }
-    diagnostics["chat_scope_found"] = true
-    diagnostics["find_stage"] = 4
-    checkFocus()
-    guard AXUIElementPerformAction(scopes.matches[0], kAXPressAction as CFString) == .success else {
+    guard input != nil || (scopes.complete && scopes.matches.count <= 1) else {
         respond("find_unavailable", diagnostics: diagnostics, method: method)
     }
-    diagnostics["chat_scope_pressed"] = true
-    diagnostics["find_stage"] = 5
+    // Codex hides domain toggles when chat is the only available search target.
+    // Its labelled native input establishes chat scope without a toggle button.
+    if input == nil, let scope = scopes.matches.first {
+        diagnostics["chat_scope_found"] = true
+        diagnostics["find_stage"] = 4
+        checkFocus()
+        guard AXUIElementPerformAction(scope, kAXPressAction as CFString) == .success else {
+            respond("find_unavailable", diagnostics: diagnostics, method: method)
+        }
+        diagnostics["chat_scope_pressed"] = true
+        diagnostics["find_stage"] = 5
+    }
     let fieldDeadline = min(Date().addingTimeInterval(4), commandDeadline)
-    var input: AXUIElement?
-    var findRoot = root
     var scannedNodes = -1
     var keyboardAttempted = false
-    repeat {
+    while input == nil && Date() < fieldDeadline {
         Thread.sleep(forTimeInterval: 0.1)
         checkFocus()
         guard Date() < fieldDeadline else { break }
         // Scope changes remount and auto-focus the native input. Prefer that
         // explicit control over traversing the entire growing transcript.
-        if let focused = focusedChatField(app: app, window: window, thread: request.thread_id,
-                                           excluding: excluding, until: min(Date().addingTimeInterval(0.4), fieldDeadline)) {
-            input = focused.0
-            findRoot = focused.1
-            diagnostics["focused_find_field"] = true
-            break
-        }
+        if captureFocusedInput(until: min(Date().addingTimeInterval(0.4), fieldDeadline)) { break }
         var searchRoots: [AXUIElement] = []
-        var ancestor = scopes.matches[0]
-        for _ in 0..<4 {
-            guard let raw = attribute(ancestor, kAXParentAttribute as String),
-                  CFGetTypeID(raw) == AXUIElementGetTypeID() else { break }
-            ancestor = raw as! AXUIElement
-            let role = stringAttribute(ancestor, kAXRoleAttribute as String)
-            if role == "AXWebArea" || role == kAXWindowRole as String { break }
-            searchRoots.append(ancestor)
+        if let scope = scopes.matches.first {
+            var ancestor = scope
+            for _ in 0..<4 {
+                guard let raw = attribute(ancestor, kAXParentAttribute as String),
+                      CFGetTypeID(raw) == AXUIElementGetTypeID() else { break }
+                ancestor = raw as! AXUIElement
+                let role = stringAttribute(ancestor, kAXRoleAttribute as String)
+                if role == "AXWebArea" || role == kAXWindowRole as String { break }
+                searchRoots.append(ancestor)
+            }
+            if let selected = toggleSelection(scope) { diagnostics["chat_scope_selected"] = selected }
+            else { diagnostics.removeValue(forKey: "chat_scope_selected") }
         }
         searchRoots.append(findRoot)
         let scanDeadline = min(Date().addingTimeInterval(0.8), fieldDeadline)
-        if let selected = toggleSelection(scopes.matches[0]) { diagnostics["chat_scope_selected"] = selected }
-        else { diagnostics.removeValue(forKey: "chat_scope_selected") }
         let scopeSelected = diagnostics["chat_scope_selected"] as? Bool
         // Search the identified find bar before the full transcript. A local
         // complete scan can identify its one field even while history grows.
@@ -782,7 +799,7 @@ func findInCurrentChat(_ root: AXUIElement, request: NavigationRequest, excludin
             }
         }
         if input != nil { break }
-        if !keyboardAttempted && diagnostics["field_scan_complete"] as? Bool == true {
+        if !keyboardAttempted && scopes.matches.count == 1 && diagnostics["field_scan_complete"] as? Bool == true {
             keyboardAttempted = true
             diagnostics["scope_keyboard_attempted"] = true
             checkFocus()
@@ -794,7 +811,7 @@ func findInCurrentChat(_ root: AXUIElement, request: NavigationRequest, excludin
                     scopes.matches[0], app: app, window: window, pid: pid)
             } else { diagnostics["scope_keyboard_activated"] = false }
         }
-    } while Date() < fieldDeadline
+    }
     guard let input else { respond("find_unavailable", diagnostics: diagnostics, method: method) }
     diagnostics["find_input_found"] = true
     diagnostics["find_stage"] = 6
@@ -861,8 +878,18 @@ func navigate(_ request: NavigationRequest) -> Never {
     // Electron documents this opt-in for third-party assistive software. It
     // expands the web accessibility tree; it grants no system permission.
     // Reached only through the user's explicit node click, never self-tests.
-    let manualAccessibility = AXUIElementSetAttributeValue(app, "AXManualAccessibility" as CFString, kCFBooleanTrue) == .success
-    if manualAccessibility { Thread.sleep(forTimeInterval: 0.15) }
+    let manualResult = AXUIElementSetAttributeValue(app, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+    let manualAccessibility = manualResult == .success
+    var enhancedAccessibility = false
+    if manualResult == .attributeUnsupported || manualResult == .notImplemented {
+        // Chromium documents this window attribute for assistive clients.
+        // Native desktop shells may expose it without Electron's custom flag.
+        enhancedAccessibility = AXUIElementSetAttributeValue(focusedWindow, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue) == .success
+        if !enhancedAccessibility {
+            enhancedAccessibility = AXUIElementSetAttributeValue(app, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue) == .success
+        }
+    }
+    if manualAccessibility || enhancedAccessibility { Thread.sleep(forTimeInterval: 0.15) }
     let excluded = Set(request.excluded_origins ?? Array(defaultExcludedOrigins))
     var surface: ChatSurface?
     var diagnostics: [String: Any] = [:]
@@ -874,6 +901,8 @@ func navigate(_ request: NavigationRequest) -> Never {
         surface = nativeChatRoot(app, window: focusedWindow, request: request, excluding: excluded,
                               until: deadline, diagnostics: &diagnostics)
         diagnostics["manual_accessibility"] = manualAccessibility
+        diagnostics["manual_accessibility_error"] = max(0, -manualResult.rawValue)
+        diagnostics["enhanced_accessibility"] = enhancedAccessibility
         if surface == nil { Thread.sleep(forTimeInterval: 0.15) }
     } while surface == nil && Date() < deadline
     guard let surface else { respond(diagnostics["window_conflict"] as? Bool == true ? "chat_mismatch" : "chat_unverified", diagnostics: diagnostics) }

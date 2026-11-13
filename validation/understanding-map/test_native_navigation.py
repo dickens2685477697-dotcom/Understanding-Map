@@ -261,6 +261,7 @@ class NativeNavigationTests(unittest.TestCase):
             'rail_buttons': 0, 'target_buttons': 0, 'rail_nodes': 350,
             'rail_scan_complete': True, 'document_scan_complete': True,
             'manual_accessibility': True, 'file_address_pages': 0,
+            'enhanced_accessibility': True, 'manual_accessibility_error': 25205,
             'unknown_address_pages': 1,
             'ax_read_errors': 2,
             'find_triggered': True, 'chat_scope_found': False, 'find_input_found': False,

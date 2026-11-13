@@ -1,6 +1,6 @@
 {
   "name": "@local/understanding-map-deepseek",
-  "version": "0.2.0",
+  "version": "0.3.2",
   "private": true,
   "description": "Understanding Map for DeepSeek Harness",
   "type": "module",
@@ -10,14 +10,29 @@
     "./locale/*.json": "./locale/*.json",
     "./icon": "./icon.svg"
   },
-  "files": ["index.js", "core.js", "client.js", "cordis.patch.yml", "locale/*.json", "icon.svg"],
-  "scripts": { "test": "node --test core.test.js" },
+  "files": [
+    "index.js",
+    "core.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg"
+  ],
+  "scripts": {
+    "test": "node --test core.test.js"
+  },
   "dsh": {
-    "bundle": { "patch": "./cordis.patch.yml" },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
     "client": {
       "platform": "web",
       "immediately": true,
-      "inject": ["@deepseek-ai/dsh-client-ui-conversation", "@deepseek-ai/dsh-client-ui-chat", "@deepseek-ai/dsh-client-ui-sidebar-right"]
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ]
     }
   }
 }

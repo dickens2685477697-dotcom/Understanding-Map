@@ -145,6 +145,8 @@ def apply(session, payload):
             fail('node must map once to a selected message with matching turn and role')
         if not isinstance(n.get('summary'), str) or not n['summary'].strip():
             fail('node summary is required')
+        if n.get('intent') is not None and n['intent'] not in ('question', 'idea', 'request', 'feedback', 'confirmation'):
+            fail('node intent must use a supported category')
         topic_id = n.get('topic_id')
         if topic_id is not None and (not isinstance(topic_id, str) or topic_id not in topic_parents):
             fail('node topic ID must reference a known topic')
@@ -204,7 +206,7 @@ def main():
         if session is None:
             fail('unknown session ID')
         # Only allow-listed fields are exposed to a viewer; never serve raw state.
-        keys = ('id', 'turn_id', 'message_id', 'role', 'summary', 'parent_ids', 'source_ids', 'topic_id')
+        keys = ('id', 'turn_id', 'message_id', 'role', 'summary', 'parent_ids', 'source_ids', 'topic_id', 'intent')
         topic_keys = ('id', 'label', 'parent_id')
         print(json.dumps({'version': 1, 'session_id': sid,
                           'topics': [{k: t.get(k) for k in topic_keys} for t in session.get('topics', [])],

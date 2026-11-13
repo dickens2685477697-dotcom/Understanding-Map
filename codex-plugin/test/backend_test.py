@@ -3,6 +3,8 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import threading
+import time
 import unittest
 from unittest.mock import patch
 
@@ -94,6 +96,40 @@ class BackendTests(unittest.TestCase):
         request = {**self.request('chat-a', 'refresh'), 'session': '00000000-0000-4000-8000-000000000001'}
         with self.assertRaises(backend.MapSessionExpired):
             backend.Backend().dispatch(request)
+
+    def test_navigation_returns_before_helper_finishes_and_keeps_map_reads_available(self):
+        self.open_map('chat-a')
+        self.service.helper = 'test-helper'
+        entered, finish = threading.Event(), threading.Event()
+        def navigate(helper, target):
+            entered.set()
+            finish.wait(3)
+            return {'status': 'located', 'verified': True}
+        with patch.object(backend, 'resolve_node_record', return_value=object()), \
+             patch.object(backend.native_navigation, 'build_target', return_value={'node_id': 'test'}), \
+             patch.object(backend.native_navigation, 'invoke_helper', side_effect=navigate):
+            result = self.service.dispatch(self.request('chat-a', 'navigate', node_id='test'))
+            self.assertEqual(result['status'], 202)
+            self.assertEqual(result['body']['status'], 'pending')
+            self.assertTrue(entered.wait(1))
+            try:
+                view = self.service.dispatch(self.request('chat-a', 'map-view.json'))
+                self.assertEqual(view['body']['marker'], 'chat-a')
+                duplicate = self.service.dispatch(self.request('chat-a', 'navigate', node_id='test'))
+                self.assertEqual(duplicate['status'], 409)
+                status = self.service.dispatch(self.request('chat-a', 'native-navigation'))['body']['navigation']
+                self.assertEqual(status['request_id'], result['body']['request_id'])
+                self.assertEqual(status['status'], 'pending')
+            finally:
+                finish.set()
+            deadline = time.monotonic() + 1
+            while time.monotonic() < deadline:
+                status = self.service.dispatch(self.request('chat-a', 'native-navigation'))['body']['navigation']
+                if status['status'] != 'pending':
+                    break
+                time.sleep(.01)
+            self.assertEqual(status['status'], 'located')
+            self.assertTrue(status['verified'])
 
 
 if __name__ == '__main__':

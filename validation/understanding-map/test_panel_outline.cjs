@@ -16,7 +16,7 @@ const assert = require('node:assert/strict');
     { id: 'u3', turn_id: 't3', role: 'user', summary: '新的未归类问题', topic_id: null, parent_ids: [] },
   ] };
   let tick, copied = '';
-  const dom = new JSDOM(html, { url: 'http://example.test/live-panel.html', runScripts: 'dangerously', beforeParse(window) {
+  const dom = new JSDOM(html, { url: 'http://example.test/live-panel.html?debug=1', runScripts: 'dangerously', beforeParse(window) {
     window.fetch = async (url) => {
       if (url.startsWith('node-source?')) {
         const id = new URL(url, 'http://example.test/').searchParams.get('id');

@@ -31,8 +31,19 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
   if mode: target.chmod(mode)
 `, join(source, "releases/Understanding-Map-0.2.0-test.1.zip"), join(root, "runtime/assets")]);
 
+if (process.platform === "darwin") {
+  execFileSync("sh", [join(source, "native-helper/build_helper.sh")], {
+    env: { ...process.env, UNDERSTANDING_MAP_HELPER_OUTPUT: join(root, "runtime/assets/native-helper/Understanding Map Navigator.app") },
+    stdio: "pipe",
+  });
+  await copyFile(join(source, "native-helper/MapNavigator.swift"), join(root, "runtime/assets/native-helper/MapNavigator.swift"));
+}
+
 const bridge = await build({ entryPoints: [join(root, "panel.mjs")], bundle: true, format: "iife", platform: "browser", write: false });
 let html = await readFile(join(source, "live-panel.html"), "utf8");
+const { version } = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+const development = process.env.UNDERSTANDING_MAP_DEBUG === "1" && !process.argv.includes("--release");
+html = html.replace("<main>", `<main data-plugin-version="${version}" data-development="${development}">`);
 const scriptStart = html.lastIndexOf("<script>");
 const scriptEnd = html.indexOf("</script>", scriptStart);
 if (scriptStart < 0 || scriptEnd < 0) throw new Error("Map panel script was not found");

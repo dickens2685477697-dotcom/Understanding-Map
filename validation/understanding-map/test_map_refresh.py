@@ -21,7 +21,7 @@ def turn(tid, items, status='inProgress'):
 
 def model_result(session, pending):
     return {'topics': [], 'messages': [{'message_id': message['message_id'], 'summary': '摘要 ' + message['text'],
-                                      'topic_id': None, 'parent_message_ids': []} for message in pending]}
+                                      'topic_id': None, 'intent': 'question', 'parent_message_ids': []} for message in pending]}
 
 
 class RefreshTests(unittest.TestCase):
@@ -63,6 +63,63 @@ class RefreshTests(unittest.TestCase):
         self.update([turn('t1', [user('u1')])])
         self.assertEqual(self.update([turn('t1', [user('u1'), user('u2', '同轮补充')])]), 1)
         self.assertEqual([node['message_id'] for node in self.session()['nodes']], ['u1', 'u2'])
+
+    def test_idea_and_later_request_keep_their_own_intents_and_source_relation(self):
+        def classify(session, pending):
+            result = model_result(session, pending)
+            for node in result['messages']:
+                node['intent'] = 'idea' if node['message_id'] == 'idea' else 'request'
+                node['parent_message_ids'] = [] if node['message_id'] == 'idea' else ['idea']
+            return result
+        self.update([turn('t1', [user('idea', '我想到可以给摘要增加标签')])], classify)
+        original = self.session()['nodes'][0]
+        self.update([turn('t2', [user('start', '开始做')])], classify)
+        nodes = self.session()['nodes']
+        self.assertEqual(nodes[0], original)
+        self.assertEqual(nodes[1]['intent'], 'request')
+        self.assertEqual(nodes[1]['parent_ids'], ['node-idea'])
+        view = json.loads((self.folder / 'map-view.json').read_text())
+        self.assertEqual([node['intent'] for node in view['nodes']], ['idea', 'request'])
+
+    def test_legacy_intents_are_backfilled_once_without_rewriting_saved_nodes(self):
+        snapshot = [turn('t1', [user('u1', '我有一个想法')], 'completed')]
+        self.update(snapshot)
+        state = json.loads((self.folder / 'state.json').read_text())
+        original = state['sessions']['test-chat']['nodes'][0]
+        del original['intent']
+        before = dict(original)
+        (self.folder / 'state.json').write_text(json.dumps(state))
+        def classify(session, pending):
+            self.assertEqual(pending[0]['existing_summary'], before['summary'])
+            result = model_result(session, pending)
+            result['messages'][0].update(intent='idea', summary='改写的摘要', topic_id='changed')
+            return result
+        model = Mock(side_effect=classify)
+        self.assertEqual(self.update(snapshot, model), 0)
+        self.assertEqual(self.session()['nodes'][0], {**before, 'intent': 'idea'})
+        self.assertEqual(self.update(snapshot, model), 0)
+        self.assertEqual(model.call_count, 1)
+
+    def test_invalid_intent_preserves_saved_state_and_uncertain_intent_is_not_retried(self):
+        snapshot = [turn('t1', [user('u1')])]
+        self.update(snapshot)
+        before = (self.folder / 'state.json').read_bytes()
+        def invalid(session, pending):
+            result = model_result(session, pending)
+            result['messages'][0]['intent'] = 'unknown'
+            return result
+        with self.assertRaisesRegex(refresh.UpdateError, 'invalid_summary'):
+            self.update([turn('t2', [user('u2')])], invalid)
+        self.assertEqual((self.folder / 'state.json').read_bytes(), before)
+        def uncertain(session, pending):
+            result = model_result(session, pending)
+            result['messages'][0]['intent'] = None
+            return result
+        model = Mock(side_effect=uncertain)
+        snapshot.append(turn('t2', [user('u2')]))
+        self.update(snapshot, model)
+        self.update(snapshot, model)
+        self.assertEqual(model.call_count, 1)
 
     def test_bad_summary_or_changed_source_preserves_existing_files(self):
         self.update([turn('t1', [user('u1')], 'completed')])

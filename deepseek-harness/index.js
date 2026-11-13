@@ -43,7 +43,7 @@ export async function apply(ctx) {
       const messages = source.stateOf(session).messages;
       let map = table.get(session.id) ?? emptyMap(session.id);
       const pending = pendingMessages(map, messages);
-      const unclassified = map.nodes.filter(node => !Object.hasOwn(node, 'topic_id'));
+      const unclassified = map.nodes.filter(node => !Object.hasOwn(node, 'topic_id') || !Object.hasOwn(node, 'intent'));
       if (!pending.length && !unclassified.length) return { map, added: 0, classified: 0 };
       const selection = agent.model.current();
       if (!selection) throw new Error('Choose a model in Harness first');
@@ -53,8 +53,8 @@ export async function apply(ctx) {
         const result = await summarize(selection, requestSignal, {
           instruction: classificationInstruction,
           topics: map.topics ?? [],
-          messagesToClassify: batch.map(node => ({ id: node.id, summary: node.summary })),
-          previousNodes: map.nodes.filter(node => Object.hasOwn(node, 'topic_id')).slice(-100).map(node => ({ id: node.id, summary: node.summary, topic_id: node.topic_id })),
+          messagesToClassify: batch.map(node => ({ id: node.id, text: node.text, summary: node.summary, topic_id: node.topic_id, intent: node.intent })),
+          previousNodes: map.nodes.slice(-100).map(node => ({ id: node.id, text: node.text?.slice(0, 4000), summary: node.summary, topic_id: node.topic_id, intent: node.intent })),
         });
         map = mergeTopicAssignments(map, batch, result);
         requestSignal.throwIfAborted();
@@ -66,7 +66,7 @@ export async function apply(ctx) {
         const result = await summarize(selection, requestSignal, {
           instruction: summaryInstruction,
           topics: map.topics ?? [],
-          previousNodes: map.nodes.slice(-100).map(n => ({ id: n.id, summary: n.summary, parent: n.parent, topic_id: n.topic_id })),
+          previousNodes: map.nodes.slice(-100).map(n => ({ id: n.id, text: n.text?.slice(0, 4000), summary: n.summary, intent: n.intent, parent: n.parent, topic_id: n.topic_id })),
           newMessages: batch.map(m => ({ id: m.id, text: m.text })),
         });
         map = mergeSummary(map, batch, result);

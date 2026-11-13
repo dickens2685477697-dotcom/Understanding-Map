@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/server";
@@ -9,9 +10,11 @@ import { currentThread } from "./context.mjs";
 import { MapWorker } from "./worker.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const resourceUri = "ui://understanding-map/panel.html";
+const panelHtml = await readFile(join(root, "dist/panel.html"), "utf8");
+const panelRevision = createHash("sha256").update(panelHtml).digest("hex").slice(0, 12);
+const resourceUri = `ui://understanding-map/panel-${panelRevision}.html`;
 const worker = new MapWorker(root);
-const server = new McpServer({ name: "understanding-map", title: "Understanding Map", version: "0.3.3" });
+const server = new McpServer({ name: "understanding-map", title: "Understanding Map", version: "0.4.3" });
 
 function toolError(error) {
   return { content: [{ type: "text", text: error.message }], isError: true,
@@ -21,7 +24,7 @@ function toolError(error) {
 registerAppResource(server, "理解地图", resourceUri, {}, async () => ({
   contents: [{
     uri: resourceUri, mimeType: RESOURCE_MIME_TYPE,
-    text: await readFile(join(root, "dist/panel.html"), "utf8"),
+    text: panelHtml,
     _meta: {
       ui: { prefersBorder: false, csp: { connectDomains: [], resourceDomains: [] } },
       "openai/ui": { preferredDisplayMode: "fullscreen", availableDisplayModes: ["inline", "fullscreen"] },

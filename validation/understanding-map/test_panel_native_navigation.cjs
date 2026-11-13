@@ -6,15 +6,16 @@ const assert = require('node:assert/strict');
   const html = fs.readFileSync('validation/understanding-map/live-panel.html', 'utf8');
   const requests = [];
   let navigationResponse = { status: 'dry_run', verified: false };
+  let navigationJob = {};
   const settle = () => new Promise(resolve => setTimeout(resolve, 0));
   const dom = new JSDOM(html, {
-    url: 'http://example.test/session/live-panel.html', runScripts: 'dangerously',
+    url: 'http://example.test/session/live-panel.html?debug=1', runScripts: 'dangerously',
     beforeParse(window) {
       window.localStorage.setItem('understanding-map:panel:v1:/session/live-panel.html', JSON.stringify({
         selectedId: 'u1', sourceOpen: true,
       }));
       window.fetch = async (url, options) => {
-        if (url === 'native-navigation') return { ok: true, json: async () => ({ enabled: true, mode: 'dry_run' }) };
+        if (url === 'native-navigation') return { ok: true, json: async () => ({ enabled: true, mode: 'dry_run', navigation: navigationJob }) };
         if (url.startsWith('node-source?')) return { ok: true, json: async () => ({ text: '需要定位的原始消息' }) };
         if (url === 'navigate') {
           requests.push(options);
@@ -30,6 +31,7 @@ const assert = require('node:assert/strict');
   });
   await settle();
   assert.equal(requests.length, 0, 'reopening a saved selection must not move native chat');
+  assert.equal(dom.window.document.querySelector('#source-panel').hidden, false, 'development mode retains the source inspector');
   dom.window.document.querySelector('[data-node-id="u2"]').click();
   await settle();
   assert.equal(requests.length, 1, 'one node click emits one navigation request');
@@ -156,6 +158,61 @@ const assert = require('node:assert/strict');
    await settle();
    assert.equal(dom.window.document.querySelector('#source-help').textContent, message);
   }
+  navigationResponse = {status:'pending',request_id:'current-navigation'};
+  navigationJob = {status:'located',request_id:'earlier-navigation',verified:true};
+  dom.window.document.querySelector('[data-node-id="u1"]').click();
+  await new Promise(resolve=>setTimeout(resolve,450));
+  assert.doesNotMatch(dom.window.document.querySelector('#source-help').textContent,/已确认原文可见/);
+  navigationJob = {status:'located',request_id:'current-navigation',verified:true};
+  await new Promise(resolve=>setTimeout(resolve,450));
+  assert.equal(dom.window.document.querySelector('#source-help').textContent,'已确认原文可见');
   dom.window.close();
-  console.log('Native navigation UI passed: explicit click only, no navigation on restore, scoped POST, honest dry-run and sanitized diagnostics.');
+
+  const productionRequests = [];
+  let productionSourceReads = 0;
+  let productionResult = {status:'find_unavailable',verified:false,diagnostics:{find_stage:8,find_input_found:true}};
+  const production = new JSDOM(html, {
+    url:'http://example.test/session/live-panel.html',runScripts:'dangerously',
+    beforeParse(window) {
+      window.localStorage.setItem('understanding-map:panel:v1:/session/live-panel.html',JSON.stringify({
+        selectedId:'u1',sourceOpen:true,
+      }));
+      window.fetch=async (url,options)=>{
+        if(url==='native-navigation')return {ok:true,json:async()=>({enabled:true,mode:'native'})};
+        if(url.startsWith('node-source?')){
+          productionSourceReads++;
+          return {ok:true,json:async()=>({text:'原文检查内容'})};
+        }
+        if(url==='navigate'){
+          productionRequests.push(JSON.parse(options.body));
+          return {ok:true,json:async()=>productionResult};
+        }
+        if(url==='refresh')return {ok:true,json:async()=>({status:'unchanged'})};
+        return {ok:true,text:async()=>JSON.stringify({topics:[],nodes:[
+          {id:'u1',turn_id:'t1',role:'user',summary:'第一轮'},
+          {id:'u2',turn_id:'t2',role:'user',summary:'第二轮'},
+        ]})};
+      };
+      window.setInterval=()=>1;
+    },
+  });
+  await settle();
+  const document=production.window.document;
+  assert.equal(document.querySelector('#source-panel').hidden,true,'normal mode ignores the old saved source-open preference');
+  assert.equal(productionRequests.length,0,'restoring normal mode must not move native chat');
+  document.querySelector('[data-node-id="u2"]').click();
+  await settle();
+  assert.deepEqual(productionRequests,[{node_id:'u2'}],'normal mode keeps the same server-resolved navigation request');
+  assert.equal(document.querySelector('#source-panel').hidden,true,'normal node clicks keep the inspector hidden');
+  assert.equal(document.querySelector('#navigation-status').textContent,'暂时无法定位，请重试');
+  assert.equal(document.querySelector('#navigation-status').hidden,false);
+  assert.doesNotMatch(document.querySelector('#source-help').textContent,/步骤|字段|输入框已找到/,'normal mode does not render detailed diagnostics');
+  productionResult={status:'located',verified:true};
+  document.querySelector('[data-node-id="u1"]').click();
+  await settle();
+  assert.equal(document.querySelector('#navigation-status').hidden,true,'successful navigation clears the temporary message');
+  assert.equal(document.querySelector('#source-panel').hidden,true);
+  assert.equal(productionSourceReads,0,'normal mode does not load the development source preview');
+  production.window.close();
+  console.log('Native navigation UI passed: normal mode hides the inspector and diagnostics, development mode retains them, and clicks keep scoped navigation requests.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

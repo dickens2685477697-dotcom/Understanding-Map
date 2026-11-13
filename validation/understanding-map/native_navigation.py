@@ -153,6 +153,7 @@ def invoke_helper(helper_path, target):
             'inspected_pages', 'nested_pages', 'readable_buttons', 'labelled_buttons',
             'rail_buttons', 'target_buttons', 'rail_nodes', 'rail_scan_complete',
             'document_scan_complete', 'manual_accessibility', 'file_address_pages',
+            'enhanced_accessibility', 'manual_accessibility_error',
             'unknown_address_pages',
             'ax_read_errors',
             'find_triggered', 'chat_scope_found', 'find_input_found',
@@ -164,5 +165,6 @@ def invoke_helper(helper_path, target):
             'contextual_search',
         }
         value['diagnostics'] = {k: v for k, v in diagnostics.items()
-                                if k in allowed_diagnostics and type(v) in (bool, int) and 0 <= int(v) <= 12000}
+                                if k in allowed_diagnostics and type(v) in (bool, int)
+                                and 0 <= int(v) <= (30000 if k == 'manual_accessibility_error' else 12000)}
     return value

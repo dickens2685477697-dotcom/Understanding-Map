@@ -23,7 +23,7 @@ const assert = require('node:assert/strict');
         : {ok:true,text:async()=>JSON.stringify(data)};
     }});
   }
-  let dom=page('http://example.test/session-a/live-panel.html');
+  let dom=page('http://example.test/session-a/live-panel.html?debug=1');
   await new Promise(resolve=>setTimeout(resolve,0));
   let d=dom.window.document;
   d.querySelector('[data-mode="time"]').click();
@@ -33,7 +33,7 @@ const assert = require('node:assert/strict');
   dom.window.dispatchEvent(new dom.window.Event('pagehide'));
   dom.window.close();
 
-  dom=page('http://example.test/session-a/live-panel.html');
+  dom=page('http://example.test/session-a/live-panel.html?debug=1');
   await new Promise(resolve=>setTimeout(resolve,0));
   d=dom.window.document;
   assert.equal(d.querySelector('[data-mode="time"]').getAttribute('aria-pressed'),'true','view mode is restored');
@@ -55,7 +55,7 @@ const assert = require('node:assert/strict');
   dom.window.dispatchEvent(new dom.window.Event('pagehide'));
   dom.window.close();
 
-  dom=page('http://example.test/session-a/live-panel.html');
+  dom=page('http://example.test/session-a/live-panel.html?debug=1');
   await new Promise(resolve=>setTimeout(resolve,0));
   d=dom.window.document;
   group=[...d.querySelectorAll('summary')].find(x=>x.textContent==='地图的呈现方式').parentElement;
@@ -63,14 +63,14 @@ const assert = require('node:assert/strict');
   assert.equal(d.querySelectorAll('.outline-leaf').length,2);
   dom.window.close();
 
-  dom=page('http://example.test/session-b/live-panel.html');
+  dom=page('http://example.test/session-b/live-panel.html?debug=1');
   await new Promise(resolve=>setTimeout(resolve,0));
   d=dom.window.document;
   assert.equal(d.querySelector('[data-mode="outline"]').getAttribute('aria-pressed'),'true','other sessions use independent settings');
   assert.equal(d.querySelector('#source-panel').hidden,true);
   dom.window.close();
   items.set('understanding-map:panel:v1:/session-a/live-panel.html', JSON.stringify({mode:'time',selectedId:'a1',sourceOpen:true}));
-  dom=page('http://example.test/session-a/live-panel.html');
+  dom=page('http://example.test/session-a/live-panel.html?debug=1');
   await new Promise(resolve=>setTimeout(resolve,0));
   d=dom.window.document;
   assert.equal(d.querySelector('#source-panel').hidden,true,'a previously selected AI response stays hidden');

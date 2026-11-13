@@ -6,16 +6,16 @@
 
 ## 当前状态
 
-- Codex 插件当前为 `0.3.3` 测试版，macOS 已验证侧边打开、刷新更新、重启恢复和旧连接自动重连。
+- Codex 插件最新源码为 `0.4.3` 测试版，包含五类意图标签、灰玫瑰配色、日常与开发模式及原文定位兼容修复。macOS 已验证侧边打开、刷新更新、重启恢复和旧连接自动重连。
 - 现有 macOS 导航辅助程序的较长消息和短用户消息跳转已实测成功。短消息通过同轮回复的唯一片段定位上下文，插件在其他电脑上的原生跳转仍需验证。
 - Windows UI Automation 辅助程序已交叉编译并通过纯协议检查，Windows 原生界面跳转仍待实机验证。
 - 插件包已验证解压后的独立启动、Python 后台读取、侧边入口声明及隔离安装。Mac 测试包使用本地签名。
 - 打开或刷新地图、点击“更新地图”时检查新增用户消息，由独立 Codex 任务增量生成摘要。内容相同时跳过模型调用。
-- DeepSeek Harness 插件为 `0.2.0`，macOS 已验证层级与时间视图、增量更新和原生消息定位，详见 [DeepSeek 说明](deepseek-harness/README.md)。
+- DeepSeek Harness 插件最新源码为 `0.3.2`，包含相同的意图标签与配色，并优化了摘要提示词。macOS 已验证层级与时间视图、增量更新和原生消息定位，详见 [DeepSeek 说明](deepseek-harness/README.md)。
 
 ## 安装 Codex 插件
 
-前往 [0.3.3 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.3.3) 下载 `Understanding-Map-Codex-0.3.3.zip`，解压完整文件夹。当前仓库为私有，下载者需要仓库访问权限，也可以接收原始 ZIP。
+已发布的测试安装包为 [0.3.3 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.3.3)，下载 `Understanding-Map-Codex-0.3.3.zip` 后解压完整文件夹。最新源码版可按下方构建说明打包安装。当前仓库为私有，下载者需要仓库访问权限，也可以接收原始 ZIP。
 
 准备 Codex 桌面版、Node.js 20+、Python 3.9+，并确保 Codex CLI 已用自己的账号登录或配置 API。Mac 使用 `python3`，Windows 使用 `python`。原文定位的 Mac 辅助程序面向 Apple Silicon 和 macOS 15+，首次使用需要辅助功能权限。
 
@@ -74,7 +74,7 @@ python3 validation/understanding-map/distribution/test_distribution.py
 
 ### 构建 Codex 插件包
 
-插件构建复用 `0.2.0-test.1` Release 中的定位辅助程序。准备该附件后，在 `codex-plugin` 目录执行构建与打包，详细命令见 [插件开发说明](codex-plugin/README.md)。发布产物位于 `codex-plugin/releases/`。
+插件构建使用当前 Swift 源码生成 macOS 定位辅助程序，并复用 `0.2.0-test.1` Release 中的 Windows 辅助程序。准备该附件后，在 `codex-plugin` 目录执行构建与打包，详细命令见 [插件开发说明](codex-plugin/README.md)。发布产物位于 `codex-plugin/releases/`。
 
 ## 本地数据
 

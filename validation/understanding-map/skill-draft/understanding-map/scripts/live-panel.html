@@ -9,9 +9,18 @@
 body{margin:0;background:var(--bg);color:var(--fg)}main{padding:8px}button{border:0;background:transparent;color:var(--muted);padding:7px 10px;border-radius:9px;font:inherit;cursor:pointer}button[aria-pressed=true]{background:var(--accent);color:var(--selected)}.controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.hint,.status{font-size:12px;color:var(--muted);line-height:1.5}.outline-group{margin-left:18px}.outline-group summary{padding:8px 0;cursor:pointer}.outline-group>summary{color:var(--topic-color,var(--fg))}.outline-leaf{border-left:2px solid var(--topic-color,var(--muted))}.node-button .num{color:var(--topic-color,var(--muted))}.outline-leaf{display:flex;gap:12px;align-items:baseline;padding:8px 10px 8px 24px}.num{color:var(--muted);font-variant-numeric:tabular-nums;flex:0 0 25px}.status{margin-top:16px}.time-wrap{overflow-x:auto}.time-layout{display:grid;min-width:max-content}.time-graph{grid-row:1;grid-column:1}.time-rows{grid-row:1;grid-column:2;display:grid}.time-leaf{display:flex;gap:8px;padding:0 12px;min-width:260px;align-items:center}.role{color:var(--muted);font-size:12px}
 button.node-button{width:100%;text-align:left;color:var(--fg);background:transparent;border-radius:6px;line-height:1.45}button.node-button:hover{background:light-dark(#f2f4f7,#303237)}button.node-button[aria-pressed=true]{background:light-dark(#eaf1ff,#243754);color:var(--fg)}button.node-button:focus-visible,.source-panel button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}.node-label{min-width:0;overflow-wrap:anywhere}.node-action{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap;opacity:0}button.node-button:hover .node-action,button.node-button:focus-visible .node-action,button.node-button[aria-pressed=true] .node-action{opacity:1}.time-graph circle{cursor:pointer}.time-graph circle:hover,.time-graph circle[aria-pressed=true]{stroke:var(--topic-color,var(--accent));stroke-width:4;stroke-opacity:.25}.source-panel{position:sticky;top:0;z-index:2;margin:0 0 12px;padding:12px;background:var(--bg);border:1px solid light-dark(#e2e4e8,#42454b);border-radius:10px;box-shadow:0 4px 12px light-dark(#0000000d,#00000040)}.source-panel[hidden]{display:none}.source-header{display:flex;align-items:center;justify-content:space-between;gap:8px}.source-header strong{font-weight:600}.source-header button{padding:2px 6px}.source-text{max-height:150px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0;font:inherit;line-height:1.55}.source-help{font-size:12px;color:var(--muted);line-height:1.5}.source-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.source-actions button{padding:4px 8px;background:light-dark(#f2f4f7,#303237);color:var(--fg);border-radius:6px}.source-actions button:disabled{opacity:.5;cursor:default}
 </style>
+<style>
+.intent-tag{display:inline-block;margin-right:8px;padding:1px 6px;border-radius:4px;background:light-dark(#f0f4fa,#293241);color:light-dark(#50617b,#b7c7df);font-size:11px;line-height:1.5;white-space:nowrap;vertical-align:1px}
+.intent-tag[data-intent="question"]{background:#FAF0F3;color:#6E3A50}
+.intent-tag[data-intent="idea"]{background:#F3DCE4;color:#6E3A50}
+.intent-tag[data-intent="request"]{background:#E3B6C7;color:#5B2A40}
+.intent-tag[data-intent="feedback"]{background:#C88DA3;color:#411B2C}
+.intent-tag[data-intent="confirmation"]{background:#91556F;color:#FFF7FA}
+</style>
 </head><body><main>
 <div class="controls"><button type="button" data-mode="outline" aria-pressed="true">按层级</button><button type="button" data-mode="time" aria-pressed="false">按时间</button><button type="button" id="map-refresh">更新地图</button><span class="hint">大纲视图：按话题组织，数字是原始对话顺序</span></div>
 <section class="source-panel" id="source-panel" aria-label="对话原文" hidden><div class="source-header"><strong>对话原文</strong><button type="button" id="source-close" aria-label="关闭原文">✕</button></div><div class="source-text" id="source-text" aria-live="polite"></div><div class="source-actions"><button type="button" id="source-copy" disabled>复制原文查找</button><span class="source-help" id="source-help">回到聊天后按 ⌘F 查找</span></div></section>
+<div class="status" id="navigation-status" role="status" aria-live="polite" hidden></div>
 <div class="status" id="refresh-status" role="status" aria-live="polite"></div><div id="map"></div><div class="status" role="status">等待本机更新任务生成地图</div>
 </main><script>
 (()=>{
@@ -19,22 +28,56 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
  const updateButton=document.querySelector('#map-refresh'),updateStatus=document.querySelector('#refresh-status');
  let updateRunning=false,requestingUpdate=false,activeUpdateId=null;
  const sourcePanel=document.querySelector('#source-panel'),sourceText=document.querySelector('#source-text'),sourceCopy=document.querySelector('#source-copy'),sourceHelp=document.querySelector('#source-help');
+ const navigationStatus=document.querySelector('#navigation-status');
+ const developmentMode=document.querySelector('main').dataset.development==='true'||new URLSearchParams(location.search).get('debug')==='1';
  const prefsKey=`understanding-map:panel:v1:${location.pathname}`;
  function readPrefs(){try{const value=JSON.parse(localStorage.getItem(prefsKey)||'{}');return value&&typeof value==='object'?value:{}}catch{return {}}}
  const saved=readPrefs();
  let mode=saved.mode==='time'?'time':'outline',nodes=[],topics=[],last='',hasData=false,selectedId=typeof saved.selectedId==='string'?saved.selectedId:null,selectedSource='',nativeMode={enabled:false,mode:'native'};
- let restoreSource=Boolean(saved.sourceOpen&&selectedId),restoreScroll=Number.isFinite(saved.scrollY)?Math.max(0,saved.scrollY):0,initialRender=true,scrollTimer=null;
+ let restoreSource=Boolean(developmentMode&&saved.sourceOpen&&selectedId),restoreScroll=Number.isFinite(saved.scrollY)?Math.max(0,saved.scrollY):0,initialRender=true,scrollTimer=null;
  const collapsed=new Set(Array.isArray(saved.collapsed)?saved.collapsed.filter(x=>typeof x==='string'):[]);
  function savePrefs(){try{localStorage.setItem(prefsKey,JSON.stringify({mode,collapsed:[...collapsed],selectedId,sourceOpen:!sourcePanel.hidden,scrollY:Math.max(0,window.scrollY||0)}))}catch{}}
  function configureGroup(group,key){group.open=!collapsed.has(key);group.addEventListener('toggle',()=>{if(group.open)collapsed.delete(key);else collapsed.add(key);savePrefs()})}
  function syncSelection(){out.querySelectorAll('[data-node-id]').forEach(el=>el.setAttribute('aria-pressed',String(el.getAttribute('data-node-id')===selectedId)))}
- function actionLabel(){return nativeMode.enabled?(nativeMode.mode==='dry_run'?'演练定位请求':'定位当前聊天'):'查看原文'}
- async function checkNavigation(){try{const r=await fetch('native-navigation',{cache:'no-store'});if(!r.ok)throw Error('disabled');const v=await r.json();nativeMode={enabled:v.enabled===true,mode:v.mode==='dry_run'?'dry_run':'native'}}catch{nativeMode={enabled:false,mode:'native'}}out.querySelectorAll('.node-action').forEach(el=>el.textContent=actionLabel());out.querySelectorAll('button[data-node-id]').forEach(el=>el.setAttribute('aria-label',`${actionLabel()}：${el.querySelector('.node-label')?.textContent||''}`));return nativeMode.enabled}
+ function actionLabel(){
+  if(!developmentMode)return '定位当前聊天';
+  if(!nativeMode.enabled)return '查看原文';
+  return nativeMode.mode==='dry_run'?'演练定位请求':'定位当前聊天';
+ }
+ function showNavigationStatus(message){navigationStatus.textContent=message;navigationStatus.hidden=developmentMode||!message}
+ async function checkNavigation(){try{const r=await fetch('native-navigation',{cache:'no-store'});if(!r.ok)throw Error('disabled');const v=await r.json();nativeMode={enabled:v.enabled===true,mode:v.mode==='dry_run'?'dry_run':'native'}}catch{nativeMode={enabled:false,mode:'native'}}out.querySelectorAll('.node-action').forEach(el=>el.textContent=actionLabel());out.querySelectorAll('button[data-node-id]').forEach(el=>el.setAttribute('aria-label',`${actionLabel()}：${el.querySelector('.node-label')?.lastChild?.textContent||''}`));return nativeMode.enabled}
  async function navigateToNode(n){
+  showNavigationStatus('正在定位…');
   sourceHelp.textContent=nativeMode.mode==='dry_run'?'正在演练定位请求…':'正在请求本机定位…';
   try{
    const r=await fetch('navigate',{method:'POST',headers:{'Content-Type':'application/json','X-Understanding-Map-Action':'navigate'},body:JSON.stringify({node_id:n.id})});
-   const result=await r.json();if(selectedId!==n.id)return;
+   let result=await r.json();if(selectedId!==n.id)return;
+   if(result.status==='pending'&&typeof result.request_id==='string'){
+    const requestId=result.request_id,deadline=Date.now()+22000;
+    while(result.status==='pending'&&Date.now()<deadline){
+     await new Promise(resolve=>setTimeout(resolve,350));
+     if(selectedId!==n.id)return;
+     const response=await fetch('native-navigation',{cache:'no-store'});
+     if(!response.ok)throw Error('navigation status unavailable');
+     const state=await response.json();
+     if(state.navigation?.request_id===requestId)result=state.navigation;
+    }
+    if(result.status==='pending')result={status:'timed_out',verified:false};
+   }
+   if(selectedId!==n.id)return;
+   if(!developmentMode){
+    const messages={
+     accessibility_required:'请开启辅助功能权限后重试',app_not_running:'请先打开 Codex',
+     focus_changed:'请回到当前聊天后重试',chat_mismatch:'请回到对应聊天后重试',
+     busy:'上一次定位尚未结束，请稍后重试',timed_out:'定位超时，请重试',
+     source_unsearchable:'暂时无法定位这条消息',invalid_source:'请更新地图后重试',
+     invalid_request:'请更新地图后重试',dry_run:'定位演练已完成',
+     turn_revealed:'已请求定位，请核对原文位置',search_requested:'已请求定位，请核对原文位置',
+     context_revealed:'已定位到同轮回复，请核对原文位置'
+    };
+    showNavigationStatus(result.status==='located'&&result.verified===true?'':messages[result.status]||'暂时无法定位，请重试');
+    return;
+   }
    const messages={turn_revealed:'已触发原生进度导航；具体消息位置请核对',dry_run:'定位请求演练通过（未操作 Codex）',accessibility_required:'请先手动授权本机辅助程序的辅助功能权限',app_not_running:'请先打开 Codex',chat_unverified:'无法确认目标聊天，已停止定位',rail_unavailable:'未找到原生进度导航按钮，请核对辅助功能和应用版本',ambiguous_target:'定位目标不唯一，已停止定位',navigation_failed:'原生导航未能完成',helper_disabled:'本机定位尚未启用',helper_unavailable:'本机辅助程序不可用，请先完成编译',busy:'上一次定位尚未结束，请稍后再点',timed_out:'本机定位超时，请核对当前聊天'};
    if(result.scope==='current_window'){messages.turn_revealed='已触发当前聊天的原生进度导航；具体消息位置请核对';messages.chat_unverified='未识别到当前聊天区域，已停止定位'}
    messages.focus_changed='前台窗口已变化，已停止定位；请在目标聊天中重试';
@@ -88,14 +131,37 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
      details.push(`嵌套 ${d.nested_pages}`);
      if(count('ax_read_errors')&&d.ax_read_errors>0)details.push(`读取失败 ${d.ax_read_errors}`);
      if(typeof d.manual_accessibility==='boolean')details.push(`控件树请求${d.manual_accessibility?'已接受':'未接受'}`);
+     if(typeof d.enhanced_accessibility==='boolean')details.push(`备用控件树${d.enhanced_accessibility?'已接受':'未接受'}`);
+     if(Number.isInteger(d.manual_accessibility_error)&&d.manual_accessibility_error>0&&d.manual_accessibility_error<=30000)details.push(`AX 错误 ${d.manual_accessibility_error}`);
      if(count('file_address_pages')&&d.file_address_pages>0)details.push(`文件地址 ${d.file_address_pages}`);
      if(count('unknown_address_pages')&&d.unknown_address_pages>0)details.push(`未知地址 ${d.unknown_address_pages}`);
      sourceHelp.textContent+=`（诊断 2：${details.join('，')}）`;
     }else if(['native_pages','readable_addresses','matching_pages'].every(count))sourceHelp.textContent+=`（页面 ${d.native_pages}，可读地址 ${d.readable_addresses}，匹配 ${d.matching_pages}，扫描${d.scan_complete?'完整':'未完成'}）`;
    }
-  }catch{if(selectedId===n.id)sourceHelp.textContent='无法连接本机定位服务'}
+  }catch{if(selectedId===n.id){sourceHelp.textContent='无法连接本机定位服务';showNavigationStatus('暂时无法定位，请重试')}}
  }
- async function selectNode(n,navigate=true){selectedId=n.id;selectedSource='';syncSelection();sourcePanel.hidden=false;savePrefs();sourceText.textContent='正在读取原文…';sourceCopy.disabled=true;sourceHelp.textContent='回到聊天后按 ⌘F 查找';try{const r=await fetch(`node-source?id=${encodeURIComponent(n.id)}`,{cache:'no-store'});if(!r.ok)throw Error('unavailable');const result=await r.json();if(selectedId!==n.id)return;if(typeof result.text!=='string')throw Error('invalid');selectedSource=result.text;sourceText.textContent=result.text||'这条消息没有可用的文字原文';sourceCopy.disabled=!result.text;if(navigate&&await checkNavigation()&&selectedId===n.id)await navigateToNode(n)}catch{if(selectedId!==n.id)return;sourceText.textContent='暂时无法读取这条消息的原文';sourceHelp.textContent='请稍后重试'}}
+ async function selectNode(n,navigate=true){
+  selectedId=n.id;selectedSource='';syncSelection();sourcePanel.hidden=!developmentMode;savePrefs();showNavigationStatus('');
+  if(!developmentMode){
+   if(navigate){
+    const enabled=await checkNavigation();
+    if(selectedId!==n.id)return;
+    if(enabled)await navigateToNode(n);
+    else showNavigationStatus('暂时无法定位，请重试');
+   }
+   return;
+  }
+  sourceText.textContent='正在读取原文…';sourceCopy.disabled=true;sourceHelp.textContent='回到聊天后按 ⌘F 查找';
+  try{
+   const r=await fetch(`node-source?id=${encodeURIComponent(n.id)}`,{cache:'no-store'});
+   if(!r.ok)throw Error('unavailable');
+   const result=await r.json();
+   if(selectedId!==n.id)return;
+   if(typeof result.text!=='string')throw Error('invalid');
+   selectedSource=result.text;sourceText.textContent=result.text||'这条消息没有可用的文字原文';sourceCopy.disabled=!result.text;
+   if(navigate&&await checkNavigation()&&selectedId===n.id)await navigateToNode(n);
+  }catch{if(selectedId!==n.id)return;sourceText.textContent='暂时无法读取这条消息的原文';sourceHelp.textContent='请稍后重试'}
+ }
  function topicLevel(topicId){
   const byId=new Map(topics.filter(topic=>topic&&typeof topic.id==='string').map(topic=>[topic.id,topic]));
   let topic=byId.get(topicId),level=0;
@@ -114,8 +180,24 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
   element.dataset.topicLevel=String(level);
   element.style.setProperty('--topic-color',`light-dark(hsl(216 78% ${lightness}%),hsl(216 85% ${darkLightness}%))`);
  }
+ const intentLabels={question:'询问',idea:'想法',request:'需求',feedback:'反馈',confirmation:'确认'};
+ function makeLabel(node){
+  const label=document.createElement('span');
+  label.className='node-label';
+  const intent=intentLabels[node.intent];
+  if(intent){
+   const tag=document.createElement('span');
+   tag.className='intent-tag';
+   tag.dataset.intent=node.intent;
+   tag.textContent=intent;
+   tag.title=`发言意图 · ${intent}`;
+   label.append(tag);
+  }
+  label.append(document.createTextNode(node.summary));
+  return label;
+ }
  function makeButton(n,kind){const button=document.createElement('button');button.type='button';button.className=`${kind} node-button`;applyTopicColor(button,n.topic_id);button.setAttribute('data-node-id',n.id);button.setAttribute('aria-pressed',String(n.id===selectedId));button.setAttribute('aria-label',`${actionLabel()}：${n.summary}`);button.addEventListener('click',()=>selectNode(n));return button}
- function timeLeaf(n,index){const row=makeButton(n,'time-leaf');const num=document.createElement('span');num.className='num';num.textContent=String(index+1).padStart(2,'0');const label=document.createElement('span');label.className='node-label';label.textContent=n.summary;const action=document.createElement('span');action.className='node-action';action.textContent=actionLabel();row.append(num,label,action);return row}
+ function timeLeaf(n,index){const row=makeButton(n,'time-leaf');const num=document.createElement('span');num.className='num';num.textContent=String(index+1).padStart(2,'0');const label=makeLabel(n);const action=document.createElement('span');action.className='node-action';action.textContent=actionLabel();row.append(num,label,action);return row}
  function drawTime(){
   const timeNodes=[],userAncestors=new Map();
   nodes.forEach(node=>{
@@ -148,7 +230,7 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
   validTopics.forEach(t=>{const parent=typeof t.parent_id==='string'&&byId.has(t.parent_id)?t.parent_id:null;if(!children.has(parent))children.set(parent,[]);children.get(parent).push(t)});
   let number=0;const turnNumbers=new Map(),unassigned=[];
   nodes.forEach(n=>{if(n.role!=='user')return;if(!turnNumbers.has(n.turn_id))turnNumbers.set(n.turn_id,++number);const entry={node:n,number:turnNumbers.get(n.turn_id)};if(typeof n.topic_id==='string'&&byId.has(n.topic_id)){if(!items.has(n.topic_id))items.set(n.topic_id,[]);items.get(n.topic_id).push(entry)}else unassigned.push(entry)});
-  function appendLeaf(container,entry){const row=makeButton(entry.node,'outline-leaf');const num=document.createElement('span');num.className='num';num.textContent=String(entry.number).padStart(2,'0');const label=document.createElement('span');label.className='node-label';label.textContent=entry.node.summary;const action=document.createElement('span');action.className='node-action';action.textContent=actionLabel();row.append(num,label,action);container.append(row)}
+  function appendLeaf(container,entry){const row=makeButton(entry.node,'outline-leaf');const num=document.createElement('span');num.className='num';num.textContent=String(entry.number).padStart(2,'0');const label=makeLabel(entry.node);const action=document.createElement('span');action.className='node-action';action.textContent=actionLabel();row.append(num,label,action);container.append(row)}
   const visited=new Set();function appendTopic(topic,container){if(visited.has(topic.id))return;visited.add(topic.id);const group=document.createElement('details');group.className='outline-group';configureGroup(group,`topic:${topic.id}`);const title=document.createElement('summary');title.textContent=topic.label;title.dataset.topicId=topic.id;applyTopicColor(title,topic.id);group.append(title);(items.get(topic.id)||[]).forEach(e=>appendLeaf(group,e));(children.get(topic.id)||[]).forEach(child=>appendTopic(child,group));if(group.children.length>1)container.append(group)}
   (children.get(null)||[]).forEach(topic=>appendTopic(topic,root));validTopics.forEach(topic=>{if(!visited.has(topic.id))appendTopic(topic,root)});
   if(unassigned.length){const group=document.createElement('details');group.className='outline-group';configureGroup(group,'unassigned');const title=document.createElement('summary');title.textContent='待归类';group.append(title);unassigned.forEach(e=>appendLeaf(group,e));root.append(group)}out.append(root);
@@ -159,11 +241,14 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
  document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;syncMode();savePrefs();render()}));
  document.querySelector('#source-close').addEventListener('click',()=>{selectedId=null;selectedSource='';sourcePanel.hidden=true;syncSelection();savePrefs()});
  sourceCopy.addEventListener('click',async()=>{try{if(!selectedSource||!navigator.clipboard)throw Error('unavailable');await navigator.clipboard.writeText(selectedSource.slice(0,60));sourceHelp.textContent='已复制，回到聊天后按 ⌘F 粘贴查找'}catch{sourceHelp.textContent='复制失败，请选中原文手动复制'}});
- async function refresh(){try{const r=await fetch('map-view.json',{cache:'no-store'});if(!r.ok)throw Error('unavailable');const raw=await r.text();if(raw===last)return;const v=JSON.parse(raw);if(!Array.isArray(v.nodes))throw Error('invalid');nodes=v.nodes.filter(n=>n&&typeof n.id==='string'&&typeof n.summary==='string');topics=Array.isArray(v.topics)?v.topics:[];last=raw;hasData=true;status.textContent=`已载入 ${new Set(nodes.filter(n=>n.role==='user').map(n=>n.turn_id)).size} 轮对话 · 新消息由 Skill 整理后显示`;render();if(initialRender){initialRender=false;if(restoreSource){restoreSource=false;const selected=nodes.find(n=>n.id===selectedId);if(selected)selectNode(selected,false)}if(restoreScroll>0)requestAnimationFrame(()=>window.scrollTo(0,restoreScroll))}}catch{status.textContent=hasData?'地图服务暂不可用，保留上次的内容':'等待本机更新任务生成地图'}}
+ async function refresh(){try{const r=await fetch('map-view.json',{cache:'no-store'});if(!r.ok)throw Error('unavailable');const raw=await r.text();if(raw===last)return;const v=JSON.parse(raw);if(!Array.isArray(v.nodes))throw Error('invalid');nodes=v.nodes.filter(n=>n&&typeof n.id==='string'&&typeof n.summary==='string');topics=Array.isArray(v.topics)?v.topics:[];last=raw;hasData=true;status.textContent=`已载入 ${new Set(nodes.filter(n=>n.role==='user').map(n=>n.turn_id)).size} 轮对话 · 打开或刷新时整理新增消息`;render();if(initialRender){initialRender=false;if(restoreSource){restoreSource=false;const selected=nodes.find(n=>n.id===selectedId);if(selected)selectNode(selected,false)}if(restoreScroll>0)requestAnimationFrame(()=>window.scrollTo(0,restoreScroll))}}catch{status.textContent=hasData?'地图服务暂不可用，保留上次的内容':'等待本机更新任务生成地图'}}
  function showUpdate(job){
-  updateRunning=job.status==='checking'||job.status==='summarizing';
+  updateRunning=['checking','summarizing','classifying'].includes(job.status);
   updateButton.disabled=updateRunning;
-  const messages={checking:'正在检查新对话…',summarizing:`正在整理 ${job.added_messages||0} 条新消息…`,updated:`地图已更新，新增 ${job.added_messages||0} 条摘要`,unchanged:'已检查，暂无新增用户消息'};
+  const updated=[];
+  if(job.added_messages)updated.push(`新增 ${job.added_messages} 条摘要`);
+  if(job.classified_messages)updated.push(`补齐 ${job.classified_messages} 条消息标签`);
+  const messages={checking:'正在检查新对话…',classifying:`正在补齐 ${job.classified_messages||0} 条消息标签…`,summarizing:`正在整理 ${job.added_messages||0} 条新消息…`,updated:`地图已更新${updated.length?'，'+updated.join('，'):''}`,unchanged:'已检查，暂无新增用户消息'};
   const errors={codex_missing:'未找到 Codex CLI，请安装或配置本机 Codex',source_unavailable:'无法读取当前聊天，请检查 Codex 本机接口',source_timeout:'读取聊天超时，请重试',source_mismatch:'聊天来源与地图不一致',model_timeout:'摘要任务超时，请检查本机 Codex 的模型连接后重试',model_failed:'摘要任务失败，请检查本机 Codex 认证与模型连接',source_changed:'已保存的消息发生变化，请核对原文后重试',state_changed:'地图被另一任务更新，请再次刷新',invalid_summary:'摘要结果未通过校验，请重试',busy:'另一更新任务正在运行，请稍后重试'};
   updateStatus.textContent=job.status==='error'?(errors[job.error]||'更新未完成，请重试'):messages[job.status]||'';
  }

@@ -4,7 +4,7 @@ import { sourceDefinition as projection, emptyMap, pendingMessages, mergeSummary
 import { apply } from './index.js';
 
 const message = (id, text = id, seq = 1) => ({ id, rpcId: `rpc-${id}`, text, seq, time: 1, turn: 1, turnSeq: 0 });
-const summary = (batch, parent = null) => ({ topics: [], nodes: batch.map(m => ({ id: m.id, summary: `摘要 ${m.text}`, parent, topic_id: null })) });
+const summary = (batch, parent = null) => ({ topics: [], nodes: batch.map(m => ({ id: m.id, summary: `摘要 ${m.text}`, parent, topic_id: null, intent: 'question' })) });
 
 test('projection retains only genuine user messages with stable identities', () => {
   let state = projection.init();
@@ -57,7 +57,7 @@ async function hostFixture(fail = false, legacy = false) {
       const input = JSON.parse(options.messages[0].content[0].text);
       const result = input.messagesToClassify ? {
         topics: [{ id: 'map', label: '地图开发', parent_id: null }],
-        assignments: input.messagesToClassify.map(item => ({ id: item.id, topic_id: 'map' })),
+        assignments: input.messagesToClassify.map(item => ({ id: item.id, topic_id: 'map', intent: 'question' })),
       } : summary(input.newMessages);
       yield { type: 'text-delta', text: fail ? '{invalid' : JSON.stringify(result) };
       yield { type: 'finish', reason: { kind: 'stop' } };
@@ -89,13 +89,13 @@ test('topic containment is independent of message relations', () => {
   const batch = [message('a'), message('b')];
   const map = mergeSummary(emptyMap('chat'), batch, {
     topics: [{ id: 'development', label: '开发', parent_id: null }, { id: 'install', label: '安装', parent_id: 'development' }],
-    nodes: [{ id: 'a', summary: '开发插件', parent: null, topic_id: 'development' }, { id: 'b', summary: '安装插件', parent: null, topic_id: 'install' }],
+    nodes: [{ id: 'a', summary: '开发插件', parent: null, topic_id: 'development', intent: 'request' }, { id: 'b', summary: '安装插件', parent: null, topic_id: 'install', intent: 'request' }],
   });
   assert.equal(map.nodes[1].parent, null);
   assert.equal(map.topics[1].parent_id, 'development');
   const continued = mergeSummary(map, [message('c')], {
     topics: map.topics,
-    nodes: [{ id: 'c', summary: '继续安装', parent: 'b', topic_id: 'install' }],
+    nodes: [{ id: 'c', summary: '继续安装', parent: 'b', topic_id: 'install', intent: 'request' }],
   });
   assert.equal(continued.topics.length, 2);
   assert.deepEqual(continued.nodes.slice(0, 2), map.nodes);
@@ -110,8 +110,40 @@ test('old maps gain topic assignments without rewriting summaries or source anch
   const result = JSON.parse((await fixture.run()).text);
   assert.equal(result.added, 0);
   assert.equal(result.classified, 2);
-  assert.deepEqual(result.map.nodes, before.nodes.map(node => ({ ...node, topic_id: 'map' })));
+  assert.deepEqual(result.map.nodes, before.nodes.map(node => ({ ...node, topic_id: 'map', intent: 'question' })));
   await fixture.run();
   assert.equal(fixture.calls(), 1);
   assert.throws(() => mergeTopicAssignments(before, before.nodes, { topics: [], assignments: [{ id: 'a', topic_id: null }, { id: 'a', topic_id: null }] }), /ids/);
+});
+
+test('idea followed by an execution request preserves both intents and original anchors', () => {
+  const batch = [message('idea', '我想到可以给摘要增加标签'), message('start', '开始做', 2)];
+  const result = summary(batch);
+  result.nodes[0].intent = 'idea';
+  result.nodes[1].intent = 'request';
+  result.nodes[1].parent = 'idea';
+  const map = mergeSummary(emptyMap('chat'), batch, result);
+  assert.deepEqual(map.nodes.map(node => node.intent), ['idea', 'request']);
+  assert.equal(map.nodes[1].parent, 'idea');
+  assert.deepEqual(map.nodes.map(node => node.rpcId), ['rpc-idea', 'rpc-start']);
+  const invalid = structuredClone(result);
+  invalid.nodes[1].intent = 'unknown';
+  assert.throws(() => mergeSummary(emptyMap('chat'), batch, invalid), /intent/);
+});
+
+test('backfilling intents preserves an existing topic and accepts an uncertain result', () => {
+  const batch = [message('one')];
+  const map = mergeSummary(emptyMap('chat'), batch, {
+    topics: [{ id: 'original', label: '原话题', parent_id: null }],
+    nodes: [{ id: 'one', summary: '旧摘要', parent: null, topic_id: 'original', intent: 'idea' }],
+  });
+  delete map.nodes[0].intent;
+  const before = structuredClone(map.nodes[0]);
+  const migrated = mergeTopicAssignments(map, map.nodes, {
+    topics: [], assignments: [{ id: 'one', topic_id: null, intent: null }],
+  });
+  assert.deepEqual(migrated.nodes[0], { ...before, intent: null });
+  assert.throws(() => mergeTopicAssignments(map, map.nodes, {
+    topics: [], assignments: [{ id: 'one', topic_id: 'original', intent: 'invalid' }],
+  }), /intent/);
 });

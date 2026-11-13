@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import sys
 import threading
+import uuid
 from urllib.parse import urlencode
 
 ROOT = Path(__file__).resolve().parent
@@ -31,6 +32,8 @@ class Backend:
         self.helper = str(helper) if helper and helper.is_file() else None
         self.jobs = RefreshJobs()
         self.navigation_lock = threading.Lock()
+        self.navigation_state_lock = threading.Lock()
+        self.navigation_jobs = {}
 
     def dispatch(self, request):
         sid = checked_session_id(request.get('thread_id'))
@@ -68,7 +71,9 @@ class Backend:
             source = resolve_node_source(self.data_root, path)
             return {'status': 200 if source else 404, 'body': source or {}}
         if resource == 'native-navigation':
-            return {'status': 200, 'body': {'enabled': bool(self.helper), 'mode': 'native'}}
+            with self.navigation_state_lock:
+                navigation = dict(self.navigation_jobs.get(sid, {}))
+            return {'status': 200, 'body': {'enabled': bool(self.helper), 'mode': 'native', 'navigation': navigation}}
         if resource == 'refresh':
             return {'status': 202, 'body': self.jobs.start(Path(config_path), config)}
         if resource == 'refresh-status':
@@ -78,13 +83,34 @@ class Backend:
             return {'status': 404, 'body': {'status': 'invalid_source'}}
         if not self.helper:
             return {'status': 503, 'body': {'status': 'helper_disabled'}}
+        target = native_navigation.build_target(record)
         if not self.navigation_lock.acquire(blocking=False):
             return {'status': 409, 'body': {'status': 'busy'}}
-        try:
-            target = native_navigation.build_target(record)
-            return {'status': 200, 'body': native_navigation.invoke_helper(self.helper, target)}
-        finally:
+        job = {'status': 'pending', 'request_id': uuid.uuid4().hex, 'node_id': request['node_id']}
+        with self.navigation_state_lock:
+            self.navigation_jobs[sid] = job
+
+        def run_navigation():
+            try:
+                result = native_navigation.invoke_helper(self.helper, target)
+            except Exception:
+                result = {'status': 'helper_failed', 'verified': False}
+            with self.navigation_state_lock:
+                job.update(result)
             self.navigation_lock.release()
+            print(json.dumps({'understanding_map_navigation': result}), file=sys.stderr, flush=True)
+
+        # Return the MCP call before the helper queries the host's native UI.
+        worker = threading.Timer(0.2, run_navigation)
+        worker.daemon = True
+        try:
+            worker.start()
+        except RuntimeError:
+            with self.navigation_state_lock:
+                job.update(status='helper_failed', verified=False)
+            self.navigation_lock.release()
+            raise
+        return {'status': 202, 'body': dict(job)}
 
 
 def main():

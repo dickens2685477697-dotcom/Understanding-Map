@@ -26,7 +26,7 @@ def publish(state_path, view_path, session_id):
     session = state['sessions'].get(session_id)
     if not isinstance(session, dict) or not isinstance(session.get('nodes'), list):
         raise ValueError('unknown session ID or invalid session')
-    keys = ('id', 'turn_id', 'message_id', 'role', 'summary', 'parent_ids', 'source_ids', 'topic_id')
+    keys = ('id', 'turn_id', 'message_id', 'role', 'summary', 'parent_ids', 'source_ids', 'topic_id', 'intent')
     nodes = session['nodes']
     if not all(isinstance(node, dict) for node in nodes):
         raise ValueError('invalid session nodes')

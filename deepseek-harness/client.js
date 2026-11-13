@@ -27,6 +27,12 @@ window.__ModuleLoader__.load({
       .um-ds button.node-button:hover {background:light-dark(#f2f4f7,#303237)}
       .um-ds button.node-button[aria-pressed=true] {background:light-dark(#eaf1ff,#243754);color:var(--um-fg)}
       .um-ds .node-label {min-width:0;overflow-wrap:anywhere}
+      .um-ds .intent-tag {display:inline-block;margin-right:8px;padding:1px 6px;border-radius:4px;background:light-dark(#f0f4fa,#293241);color:light-dark(#50617b,#b7c7df);font-size:11px;line-height:1.5;white-space:nowrap;vertical-align:1px}
+      .um-ds .intent-tag[data-intent="question"] {background:#FAF0F3;color:#6E3A50}
+      .um-ds .intent-tag[data-intent="idea"] {background:#F3DCE4;color:#6E3A50}
+      .um-ds .intent-tag[data-intent="request"] {background:#E3B6C7;color:#5B2A40}
+      .um-ds .intent-tag[data-intent="feedback"] {background:#C88DA3;color:#411B2C}
+      .um-ds .intent-tag[data-intent="confirmation"] {background:#91556F;color:#FFF7FA}
       .um-ds .node-action {margin-left:auto;color:var(--um-muted);font-size:12px;white-space:nowrap;opacity:0}
       .um-ds button.node-button:hover .node-action,.um-ds button.node-button:focus-visible .node-action,.um-ds button.node-button[aria-pressed=true] .node-action {opacity:1}
       .um-ds .time-graph circle {cursor:pointer}
@@ -68,7 +74,7 @@ window.__ModuleLoader__.load({
         'data-node-id': node.id, 'aria-pressed': selectedId === node.id,
         'aria-label': `${t('locate')} ${node.summary}`, onClick: () => onSelect(node),
       }, h('span', { className: 'num' }, String(index + 1).padStart(2, '0')),
-      h('span', { className: 'node-label' }, node.summary), h('span', { className: 'node-action' }, t('locate')));
+      h('span', { className: 'node-label' }, node.intent && h('span', { className: 'intent-tag', 'data-intent': node.intent, title: t(`intent_${node.intent}`) }, t(`intent_${node.intent}`)), node.summary), h('span', { className: 'node-action' }, t('locate')));
     }
 
     function Timeline({ map, topics, selectedId, onSelect, t }) {
@@ -141,8 +147,8 @@ window.__ModuleLoader__.load({
       inject: ['slots', 'locale', 'sessions', 'remote', 'remote.commands', 'sidebarRight', 'sidebarRightTabs', 'uiSession'],
       apply(ctx) {
         ctx.effect(() => ctx.locale.register(ID, {
-          zh: { open: '理解地图', refresh: '更新地图', working: '正在更新…', empty: '发送第一条消息后，刷新生成地图。', hint: '仅总结你的消息 · 点击返回原文', unchanged: '已是最新', updated: '地图已更新', jumped: '已定位原文', missing: '消息尚未挂载，无法定位原文', pending: '条新消息待更新', count: '条提问', outline: '按层级', time: '按时间', outlineHint: '深蓝为顶层，层级越深蓝色越浅，数字表示对话顺序', timeHint: '顶层靠左、深蓝，子层向右、颜色变浅。虚线表示时间顺序，实线表示已记录的承接', unassigned: '待归类', locate: '定位当前聊天', source: '对话原文', closeSource: '关闭原文' },
-          en: { open: 'Understanding Map', refresh: 'Update map', working: 'Updating…', empty: 'Send a message, then refresh to create your map.', hint: 'Your messages only · Click to return to source', unchanged: 'Up to date', updated: 'Map updated', jumped: 'Source located', missing: 'The message has not mounted; navigation is unavailable', pending: 'new messages to update', count: 'prompts', outline: 'By hierarchy', time: 'By time', outlineHint: 'Darker blue marks top-level topics. Lighter blue marks deeper topics. Numbers retain conversation order.', timeHint: 'Deeper topics move right and become lighter. Dashed lines show time order. Solid lines show recorded message relations.', unassigned: 'Unassigned', locate: 'Locate in chat', source: 'Original message', closeSource: 'Close source' },
+          zh: { open: '理解地图', refresh: '更新地图', working: '正在更新…', empty: '发送第一条消息后，刷新生成地图。', hint: '仅总结你的消息 · 点击返回原文', unchanged: '已是最新', updated: '地图已更新', jumped: '已定位原文', missing: '消息尚未挂载，无法定位原文', pending: '条新消息待更新', count: '条发言', outline: '按层级', time: '按时间', outlineHint: '深蓝为顶层，层级越深蓝色越浅，数字表示对话顺序', timeHint: '顶层靠左、深蓝，子层向右、颜色变浅。虚线表示时间顺序，实线表示已记录的承接', unassigned: '待归类', locate: '定位当前聊天', source: '对话原文', closeSource: '关闭原文', intent_question: '询问', intent_idea: '想法', intent_request: '需求', intent_feedback: '反馈', intent_confirmation: '确认' },
+          en: { open: 'Understanding Map', refresh: 'Update map', working: 'Updating…', empty: 'Send a message, then refresh to create your map.', hint: 'Your messages only · Click to return to source', unchanged: 'Up to date', updated: 'Map updated', jumped: 'Source located', missing: 'The message has not mounted; navigation is unavailable', pending: 'new messages to update', count: 'messages', outline: 'By hierarchy', time: 'By time', outlineHint: 'Darker blue marks top-level topics. Lighter blue marks deeper topics. Numbers retain conversation order.', timeHint: 'Deeper topics move right and become lighter. Dashed lines show time order. Solid lines show recorded message relations.', unassigned: 'Unassigned', locate: 'Locate in chat', source: 'Original message', closeSource: 'Close source', intent_question: 'Question', intent_idea: 'Idea', intent_request: 'Request', intent_feedback: 'Feedback', intent_confirmation: 'Confirmation' },
         }));
         const t = ctx.locale.bind(ID), anchors = new Map(), listeners = new Set();
         let target = null;
