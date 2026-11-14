@@ -162,7 +162,7 @@ def invoke_helper(helper_path, target):
             'find_fields', 'chat_named_fields', 'field_scan_complete', 'field_read_errors',
             'field_nodes', 'focused_find_field',
             'browser_named_fields', 'scope_keyboard_attempted', 'scope_keyboard_activated',
-            'contextual_search',
+            'contextual_search', 'navigation_error_code',
         }
         value['diagnostics'] = {k: v for k, v in diagnostics.items()
                                 if k in allowed_diagnostics and type(v) in (bool, int)

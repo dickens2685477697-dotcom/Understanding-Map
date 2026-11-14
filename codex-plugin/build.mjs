@@ -14,7 +14,7 @@ for (const name of ["preview_server.py", "map_refresh.py", "native_navigation.py
 for (const name of ["init_tracker.py", "map_state.py", "publish_view.py", "reopen_map.py"]) {
   await copyFile(join(source, "skill-draft/understanding-map/scripts", name), join(root, "runtime", name));
 }
-// Reuse the sanitized, already-built helpers from the existing test release.
+// Bootstrap the packaged assets, then rebuild native helpers from current source.
 execFileSync("python3", ["-c", `
 import zipfile,sys
 from pathlib import Path
@@ -30,6 +30,9 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
   mode=(item.external_attr>>16)&0o777
   if mode: target.chmod(mode)
 `, join(source, "releases/Understanding-Map-0.2.0-test.1.zip"), join(root, "runtime/assets")]);
+
+execFileSync("python3", [join(source, "distribution/windows/build_helper.py"),
+  "--output", join(root, "runtime/assets/windows/MapNavigator.exe")], { stdio: "pipe" });
 
 if (process.platform === "darwin") {
   execFileSync("sh", [join(source, "native-helper/build_helper.sh")], {

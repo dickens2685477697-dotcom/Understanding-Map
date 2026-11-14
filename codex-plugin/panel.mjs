@@ -1,6 +1,6 @@
 import { App } from "@modelcontextprotocol/ext-apps";
 
-const app = new App({ name: "Understanding Map", version: "0.4.4" }, {}, { autoResize: true });
+const app = new App({ name: "Understanding Map", version: "0.4.5" }, {}, { autoResize: true });
 let resolveBinding;
 let rejectBinding;
 let reconnecting = null;

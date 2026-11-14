@@ -12,10 +12,10 @@ Understanding Map 在聊天旁把你的每次发言整理成简短摘要，按�
 
 | 使用环境 | 当前版本 | 下载文件 | 安装说明 |
 | --- | --- | --- | --- |
-| Codex 桌面版 | `0.4.4` 测试版 | [Understanding-Map-Codex-0.4.4.zip](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/download/v0.4.4/Understanding-Map-Codex-0.4.4.zip) | 包内 `START-HERE.md` 或附件 `START-HERE-Codex.md` |
+| Codex 桌面版 | `0.4.5` 测试版 | [Understanding-Map-Codex-0.4.5.zip](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/download/v0.4.5/Understanding-Map-Codex-0.4.5.zip) | 包内 `START-HERE.md` 或附件 `START-HERE-Codex.md` |
 | DeepSeek Harness | `0.3.2` 测试版 | [Understanding-Map-DeepSeek-0.3.2.zip](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/download/v0.4.3/Understanding-Map-DeepSeek-0.3.2.zip) | 包内 `START-HERE.md` 或附件 `START-HERE-DeepSeek.md` |
 
-安装包各附有 SHA-256 校验文件和安装说明。当前仓库为私有，GitHub 下载需要仓库访问权限，也可以直接向接收者分享原始 ZIP。[Codex 0.4.4 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.4.4) · [DeepSeek 0.3.2 所在 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.4.3)
+安装包各附有 SHA-256 校验文件和安装说明。当前仓库为私有，GitHub 下载需要仓库访问权限，也可以直接向接收者分享原始 ZIP。[Codex 0.4.5 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.4.5) · [DeepSeek 0.3.2 所在 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.4.3)
 
 截图来自 macOS 桌面版，点击可查看原图。
 
@@ -25,7 +25,7 @@ Understanding Map 在聊天旁把你的每次发言整理成简短摘要，按�
 
 准备 Codex 桌面版、Node.js 20+、Python 3.9+，并确保 Codex CLI 已用自己的账号登录或配置 API。Mac 使用 `python3`，Windows 支持 `py -3`、`python` 或 `python3`。Mac 原文定位辅助程序面向 Apple Silicon 和 macOS 15+，首次使用需要授予辅助功能权限。
 
-下载 Codex ZIP，解压完整的 `Understanding-Map-Codex-0.4.4` 文件夹，放到准备长期保留的位置。在该文件夹打开终端或 PowerShell，执行以下两条命令。
+下载 Codex ZIP，解压完整的 `Understanding-Map-Codex-0.4.5` 文件夹，放到准备长期保留的位置。在该文件夹打开终端或 PowerShell，执行以下两条命令。
 
 ```sh
 codex plugin marketplace add .
@@ -70,6 +70,10 @@ codex exec --ephemeral --skip-git-repo-check --sandbox read-only "只回复 OK�
 ```
 
 该检查会使用自己的模型额度。把完整错误提示和该检查结果一起提供，便于核对 CLI 登录、模型配置和连接状况。
+
+### Windows 点击后出现空查找框
+
+0.4.5 更新了 Windows 原文定位组件，支持直接识别已有的聊天查找输入框，兼容范围按钮隐藏的界面。若旧版点击摘要只打开查找框，请安装新版并完整退出 Codex 的所有窗口，再重开聊天和地图后点击摘要。此路径仍需 Windows 实机确认，定位失败时地图会显示简短原因。
 
 ### 打开当前聊天的理解地图
 
@@ -211,7 +215,7 @@ DeepSeek 会保留已挂载的地图面板。面板隐藏后再次显示时，�
 
 ## 兼容性与验证范围
 
-- Codex `0.4.4` 包含五类意图标签、灰玫瑰配色、日常与开发模式及原文定位兼容修复。macOS 已验证侧边打开、刷新更新、重启恢复和旧连接自动重连。
+- Codex `0.4.5` 包含五类意图标签、灰玫瑰配色、日常与开发模式及原文定位兼容修复。macOS 已验证侧边打开、刷新更新、重启恢复和旧连接自动重连。
 - macOS 导航辅助程序的较长消息和短用户消息跳转已实测成功。短消息通过同轮回复的唯一片段定位上下文，其他电脑上的原生跳转仍需验证。
 - Windows UI Automation 辅助程序已交叉编译并通过纯协议检查，Windows 原生界面跳转仍待实机验证。
 - Codex 插件包已验证解压后的独立启动、Python 后台读取、侧边入口声明及隔离安装。Mac 测试包使用本地签名。

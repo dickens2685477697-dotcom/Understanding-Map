@@ -6,6 +6,7 @@ from io import BytesIO
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -17,6 +18,61 @@ from urllib.error import HTTPError
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent))
 ARCHIVE = ROOT.parent / 'releases/Understanding-Map-0.2.0-test.1.zip'
+
+
+class CurrentWindowsHelperTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.runtime = shutil.which('mono')
+        cls.executable = Path(os.environ.get(
+            'UNDERSTANDING_MAP_WINDOWS_HELPER',
+            ROOT.parents[2] / 'codex-plugin/runtime/assets/windows/MapNavigator.exe'))
+        if not cls.runtime or not cls.executable.is_file():
+            raise unittest.SkipTest('build the current Windows helper and install Mono first')
+        spec = importlib.util.spec_from_file_location('windows_helper_build', ROOT / 'windows/build_helper.py')
+        builder = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(builder)
+        builder.verify(cls.executable)
+
+    def run_helper(self, mode, request=None):
+        return subprocess.run([self.runtime, str(self.executable), mode],
+                              input=None if request is None else json.dumps(request, ensure_ascii=False).encode('utf-8'),
+                              capture_output=True, timeout=5)
+
+    def request(self):
+        return {'version': 1, 'thread_id': '11111111-1111-4111-8111-111111111111',
+                'scope': 'current_window', 'role': 'user', 'user_position': 1,
+                'captured_user_count': 2, 'anchors': ['这是需要填入查找框的原文片段 😀'],
+                'excluded_origins': ['http://127.0.0.1:18766']}
+
+    def test_current_rules_pass_without_loading_windows_ui(self):
+        result = self.run_helper('--self-test')
+        self.assertEqual(result.returncode, 0, result.stderr.decode())
+        self.assertEqual(json.loads(result.stdout)['status'], 'self_test_passed')
+
+    def test_current_helper_accepts_unicode_and_same_turn_context(self):
+        direct = self.request()
+        contextual = dict(direct, anchors=[], short_text='继续',
+                          context_anchors=['这是该条短消息同一轮的独有回复内容 😀'])
+        for request in (direct, contextual):
+            with self.subTest(contextual='short_text' in request):
+                result = self.run_helper('--validate-request', request)
+                self.assertEqual(result.returncode, 0, result.stderr.decode())
+                self.assertEqual(json.loads(result.stdout)['status'], 'valid_request')
+
+    def test_current_helper_rejects_invalid_navigation_targets(self):
+        changes = (
+            {'scope': 'other_window'}, {'thread_id': 'invalid'}, {'user_position': 0},
+            {'user_position': 3}, {'anchors': ['原文片段'] * 5}, {'anchors': ['字' * 65]},
+            {'anchors': [], 'short_text': '继续', 'context_anchors': ['太短']},
+            {'anchors': [], 'short_text': '继续', 'role': 'assistant'},
+            {'excluded_origins': ['https://example.com']},
+        )
+        for change in changes:
+            with self.subTest(change=change):
+                result = self.run_helper('--validate-request', dict(self.request(), **change))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(json.loads(result.stdout)['status'], 'invalid_request')
 
 
 class DistributionTests(unittest.TestCase):

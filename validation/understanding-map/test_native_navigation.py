@@ -270,6 +270,7 @@ class NativeNavigationTests(unittest.TestCase):
             'find_fields': 2, 'chat_named_fields': 0, 'field_scan_complete': True, 'field_read_errors': 0,
             'field_nodes': 35, 'focused_find_field': True,
             'browser_named_fields': 1, 'scope_keyboard_attempted': True, 'scope_keyboard_activated': False,
+            'navigation_error_code': 8,
         }
         result = SimpleNamespace(stdout=json.dumps({
             'status': 'chat_unverified', 'verified': False,
@@ -293,6 +294,7 @@ class NativeNavigationTests(unittest.TestCase):
                                     'find_triggered': invalid, 'chat_scope_found': invalid,
                                     'find_input_found': invalid, 'query_written': invalid,
                                     'search_candidates': invalid,
+                                    'navigation_error_code': invalid,
                                     'private_url': 'must not be returned'},
                 }).encode(), returncode=1)
                 with patch.object(subprocess, 'run', return_value=result):

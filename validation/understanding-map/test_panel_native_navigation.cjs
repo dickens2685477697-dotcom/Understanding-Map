@@ -104,6 +104,15 @@ const assert = require('node:assert/strict');
   diagnosticText = dom.window.document.querySelector('#source-help').textContent;
   assert.equal(diagnosticText, '未找到可用的原生聊天查找入口（查找已触发，聊天范围按钮已找到，输入框未找到，可用 2）');
   assert.doesNotMatch(diagnosticText, /已确认原文可见|private search text/);
+  navigationResponse={status:'navigation_failed',verified:false,diagnostics:{navigation_error_code:11,find_stage:8}};
+  dom.window.document.querySelector('[data-node-id="u1"]').click();
+  await settle();
+  assert.match(dom.window.document.querySelector('#source-help').textContent,/定位错误 11，步骤 8/);
+  navigationResponse={status:'chat_unverified',verified:false,diagnostics:{diagnostic_version:3,native_pages:0,document_scan_complete:true,ax_read_errors:0}};
+  dom.window.document.querySelector('[data-node-id="u1"]').click();
+  await settle();
+  assert.match(dom.window.document.querySelector('#source-help').textContent,/Windows 诊断：聊天区域 0，页面扫描完整/);
+  navigationResponse={status:'find_unavailable',verified:false};
   navigationResponse.diagnostics = {
     find_triggered: false, chat_scope_found: true, chat_scope_pressed: true,
     chat_scope_selected: true, find_input_found: false, find_stage: 5,
@@ -204,9 +213,21 @@ const assert = require('node:assert/strict');
   await settle();
   assert.deepEqual(productionRequests,[{node_id:'u2'}],'normal mode keeps the same server-resolved navigation request');
   assert.equal(document.querySelector('#source-panel').hidden,true,'normal node clicks keep the inspector hidden');
-  assert.equal(document.querySelector('#navigation-status').textContent,'暂时无法定位，请重试');
+  assert.equal(document.querySelector('#navigation-status').textContent,'未能识别聊天查找框，请回到对应聊天后重试');
   assert.equal(document.querySelector('#navigation-status').hidden,false);
   assert.doesNotMatch(document.querySelector('#source-help').textContent,/步骤|字段|输入框已找到/,'normal mode does not render detailed diagnostics');
+  for(const [status,message] of [
+    ['navigation_failed','未能填入查找原文，请回到聊天后重试'],
+    ['chat_unverified','未能确认当前聊天，请打开对应聊天后重试'],
+    ['helper_unavailable','定位组件缺失，请重新安装最新版插件'],
+  ]){
+    productionResult={status,verified:false,diagnostics:{navigation_error_code:8,find_stage:6}};
+    document.querySelector('[data-node-id="u1"]').click();
+    await settle();
+    assert.equal(document.querySelector('#navigation-status').textContent,message);
+    assert.equal(document.querySelector('#source-panel').hidden,true);
+    assert.doesNotMatch(document.querySelector('#navigation-status').textContent,/错误 8|步骤|字段/);
+  }
   productionResult={status:'located',verified:true};
   document.querySelector('[data-node-id="u1"]').click();
   await settle();

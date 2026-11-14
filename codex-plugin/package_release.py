@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Package the built Codex plugin using a program-file allowlist."""
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -12,6 +13,11 @@ ROOT = Path(__file__).resolve().parent
 
 
 def package(output=None):
+    builder_path = ROOT.parent / 'validation/understanding-map/distribution/windows/build_helper.py'
+    spec = importlib.util.spec_from_file_location('windows_navigator_build', builder_path)
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+    builder.verify(ROOT / 'runtime/assets/windows/MapNavigator.exe')
     manifest = json.loads((ROOT / '.codex-plugin/plugin.json').read_text(encoding='utf-8'))
     version = manifest['version']
     if not re.fullmatch(r'[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?', version):
@@ -106,6 +112,10 @@ Node.js 应为 20+，Python 应为 3.9+。如果 `py -3` 不可用，可检查 `
 如果依然启动失败，请提供地图内的完整错误文字。Python 缺失、版本不足、Codex CLI 缺失和插件后台连接中断会显示对应提示。安装后按包内命令注册插件，再从 Codex 的“更多工具…”进入地图。
 
 如果提示摘要任务超时，说明后台已在运行。0.4.4 每批最多整理 16 条，校验后立即保存，单批最多等待 5 分钟。点击“更新地图”可继续处理剩余消息。仍超时时，请核对同一台电脑上的 Codex CLI 能否正常生成回复，并提供完整错误文字。
+
+## Windows 原文定位
+
+0.4.5 从当前源码重新编译 Windows 定位组件，优先识别已有的聊天查找框，兼容范围切换按钮隐藏的界面。若旧版点击摘要只出现空查找框，请升级后完整退出 Codex 的所有窗口，再重新打开对应聊天和地图。原生 Windows 跳转仍需实机确认。日常界面显示简短错误原因，详细诊断仅在开发模式显示。
 
 ## 数据和用量
 

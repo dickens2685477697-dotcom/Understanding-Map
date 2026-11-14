@@ -72,6 +72,14 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
      busy:'上一次定位尚未结束，请稍后重试',timed_out:'定位超时，请重试',
      source_unsearchable:'暂时无法定位这条消息',invalid_source:'请更新地图后重试',
      invalid_request:'请更新地图后重试',dry_run:'定位演练已完成',
+     find_unavailable:'未能识别聊天查找框，请回到对应聊天后重试',
+     chat_unverified:'未能确认当前聊天，请打开对应聊天后重试',
+     ambiguous_target:'定位目标不唯一，请更新地图后重试',
+     navigation_failed:'未能填入查找原文，请回到聊天后重试',
+     helper_failed:'定位组件未能运行，请重新打开 Codex 后重试',
+     helper_unavailable:'定位组件缺失，请重新安装最新版插件',
+     helper_disabled:'原文定位尚未启用，请检查插件设置',
+     rail_unavailable:'未能识别聊天导航，请回到对应聊天后重试',
      turn_revealed:'已请求定位，请核对原文位置',search_requested:'已请求定位，请核对原文位置',
      context_revealed:'已定位到同轮回复，请核对原文位置'
     };
@@ -91,6 +99,10 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
    messages.invalid_request='定位请求无效，请刷新地图后重试';
    sourceHelp.textContent=result.status==='located'&&result.verified===true?'已确认原文可见':(messages[result.status]||'本机定位未完成，请核对辅助服务');
    const d=result.diagnostics;
+   if(result.status==='navigation_failed'&&Number.isInteger(d?.navigation_error_code)&&d.navigation_error_code>=1&&d.navigation_error_code<=12000){
+    const stage=Number.isInteger(d.find_stage)&&d.find_stage>=0&&d.find_stage<=9?`，步骤 ${d.find_stage}`:'';
+    sourceHelp.textContent+=`（定位错误 ${d.navigation_error_code}${stage}）`;
+   }
    if(result.status==='search_requested'&&d?.contextual_search===true)sourceHelp.textContent='已查找同轮上下文，尚未确认短消息位置';
    if(result.status==='helper_failed'&&d&&typeof d==='object'){
     const details=[];
@@ -122,6 +134,13 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
    if(result.status==='chat_unverified'&&d&&typeof d==='object'){
     const count=key=>Number.isInteger(d[key])&&d[key]>=0&&d[key]<=12000;
     if(d.focused_window===false)sourceHelp.textContent+='（未读取到应用前台窗口）';
+    else if(d.diagnostic_version===3&&count('native_pages')){
+     const details=[`聊天区域 ${d.native_pages}`];
+     if(typeof d.document_scan_complete==='boolean')details.push(`页面扫描${d.document_scan_complete?'完整':'未完成'}`);
+     if(count('rail_buttons'))details.push(`导航 ${d.rail_buttons}`);
+     if(count('ax_read_errors')&&d.ax_read_errors>0)details.push(`读取失败 ${d.ax_read_errors}`);
+     sourceHelp.textContent+=`（Windows 诊断：${details.join('，')}）`;
+    }
     else if(d.diagnostic_version===2&&['eligible_pages','native_pages','readable_buttons','rail_buttons','target_buttons','nested_pages'].every(count)){
      const details=[`候选 ${d.eligible_pages}/${d.native_pages}`,`按钮 ${d.readable_buttons}`];
      if(count('labelled_buttons'))details.push(`带标签 ${d.labelled_buttons}`);

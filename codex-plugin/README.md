@@ -1,6 +1,6 @@
 # Understanding Map · Codex 插件
 
-本地测试版 0.4.4。Codex 管理 MCP 插件进程，地图面板通过 MCP 读取、更新和定位，无需单独启动终端或 HTTP 服务。
+本地测试版 0.4.5。Codex 管理 MCP 插件进程，地图面板通过 MCP 读取、更新和定位，无需单独启动终端或 HTTP 服务。
 
 ## 使用
 
@@ -16,13 +16,15 @@
 
 ## 开发与本地安装
 
-在此目录执行 `npm ci`、`npm run build` 和 `npm test`。后端测试使用 `python3 -m unittest discover -s test -p '*_test.py' -v`。构建复用仓库内地图代码和现有测试 Release 中的 Windows 辅助程序。macOS 使用 Xcode Command Line Tools 从当前 Swift 源码构建定位辅助程序。
+在此目录执行 `npm ci`、`npm run build` 和 `npm test`。后端测试使用 `python3 -m unittest discover -s test -p '*_test.py' -v`。构建复用仓库内地图代码。macOS 使用 Xcode Command Line Tools 从当前 Swift 源码构建定位辅助程序。Windows 定位组件由当前 C# 源码编译，需要 Mono 的 `mcs`、`mono` 和 .NET Framework 4.8 引用程序集。发布时核对源码与 EXE 的 SHA-256，阻止旧组件进入安装包。
 
 新克隆仓库时，先在仓库根目录下载构建所需的辅助程序附件。
 
 ```sh
 gh release download v0.2.0-test.1 --pattern Understanding-Map-0.2.0-test.1.zip --dir validation/understanding-map/releases
 ```
+
+从 NuGet 的 `Microsoft.NETFramework.ReferenceAssemblies.net48` 1.0.3 包取得引用程序集，将 `UNDERSTANDING_MAP_NET48_REFS` 指向含有 `UIAutomationClient.dll`、`UIAutomationTypes.dll` 和 `WindowsBase.dll` 的目录。也可将包解压到 `validation/understanding-map/releases/net48`，使用默认的 `build/.NETFramework/v4.8` 子目录。此依赖仅用于构建，安装发布包的用户无需安装 Mono 或引用程序集。
 
 随后在 `codex-plugin` 目录执行以下命令。
 
@@ -33,7 +35,7 @@ npm test
 python3 -m unittest discover -s test -p '*_test.py' -v
 ```
 
-`npm run package` 构建并生成 `releases/Understanding-Map-Codex-0.4.4.zip`、SHA-256 校验文件和 `START-HERE-Codex.md`。安装包包含独立运行所需的已打包脚本，接收者准备 Node.js、Python 和已认证的 Codex CLI 后即可按包内说明安装。程序文件按白名单收集，个人地图保存在每位使用者自己的数据目录。
+`npm run package` 构建并生成 `releases/Understanding-Map-Codex-0.4.5.zip`、SHA-256 校验文件和 `START-HERE-Codex.md`。安装包包含独立运行所需的已打包脚本，接收者准备 Node.js、Python 和已认证的 Codex CLI 后即可按包内说明安装。程序文件按白名单收集，个人地图保存在每位使用者自己的数据目录。
 
 在仓库根目录执行下面两条命令。
 
@@ -47,6 +49,8 @@ codex plugin add understanding-map@understanding-map-local
 通过 CLI 升级时，已运行的桌面应用可能仍持有上一版 MCP 进程。若面板提示未能显示，且日志仍引用旧版本的资源目录，完整退出并重新打开 Codex，再打开当前聊天的地图。
 
 ## 验证范围
+
+0.4.5 更新 Windows 原文定位组件。优先复用唯一的聊天查找输入框，兼容隐藏范围按钮、中英文查找标签和嵌套文档。输入前校验当前聊天与焦点，输入后回读确认。安装包使用当前源码重新编译的 EXE，附有源码和二进制校验记录。编译、协议与回归测试可在 macOS 验证，Windows 原生点击跳转仍需实机确认。
 
 0.4.4 同时处理摘要任务超时。历史消息每批最多 16 条，每批校验后立即保存，单批上限从 180 秒调整为 300 秒。失败后继续处理剩余批次，CLI 错误事件分类为连接、认证或额度问题，超时清理摘要子进程。Windows 首装与模型连接仍需用户在对应电脑确认。
 
