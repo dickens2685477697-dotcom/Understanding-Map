@@ -1,6 +1,6 @@
 # Understanding Map · Codex 插件
 
-本地测试版 0.4.3。Codex 管理 MCP 插件进程，地图面板通过 MCP 读取、更新和定位，无需单独启动终端或 HTTP 服务。
+本地测试版 0.4.4。Codex 管理 MCP 插件进程，地图面板通过 MCP 读取、更新和定位，无需单独启动终端或 HTTP 服务。
 
 ## 使用
 
@@ -33,7 +33,7 @@ npm test
 python3 -m unittest discover -s test -p '*_test.py' -v
 ```
 
-`npm run package` 构建并生成 `releases/Understanding-Map-Codex-0.4.3.zip`、SHA-256 校验文件和 `START-HERE-Codex.md`。安装包包含独立运行所需的已打包脚本，接收者准备 Node.js、Python 和已认证的 Codex CLI 后即可按包内说明安装。程序文件按白名单收集，个人地图保存在每位使用者自己的数据目录。
+`npm run package` 构建并生成 `releases/Understanding-Map-Codex-0.4.4.zip`、SHA-256 校验文件和 `START-HERE-Codex.md`。安装包包含独立运行所需的已打包脚本，接收者准备 Node.js、Python 和已认证的 Codex CLI 后即可按包内说明安装。程序文件按白名单收集，个人地图保存在每位使用者自己的数据目录。
 
 在仓库根目录执行下面两条命令。
 
@@ -47,6 +47,8 @@ codex plugin add understanding-map@understanding-map-local
 通过 CLI 升级时，已运行的桌面应用可能仍持有上一版 MCP 进程。若面板提示未能显示，且日志仍引用旧版本的资源目录，完整退出并重新打开 Codex，再打开当前聊天的地图。
 
 ## 验证范围
+
+0.4.4 修复首次启动时的 Python 发现与后台 UTF-8 通信，支持 Windows 的 `py -3`、`python` 和 `python3`。启动失败时显示依赖、版本或连接中断的具体提示。Windows 路径与进程生命周期通过模拟测试，原生 Windows 首装仍需实机确认。
 
 0.4.3 为询问、想法、需求、反馈、确认应用由浅到深的灰玫瑰配色，两种视图使用相同的标签样式。
 

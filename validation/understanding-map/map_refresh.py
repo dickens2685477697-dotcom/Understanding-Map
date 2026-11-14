@@ -42,9 +42,16 @@ def codex_binary():
 
 class CodexReader:
     def __enter__(self):
-        self.process = subprocess.Popen([codex_binary(), 'app-server'], cwd=tempfile.gettempdir(),
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-            text=True, encoding='utf-8')
+        try:
+            self.process = subprocess.Popen([codex_binary(), 'app-server'], cwd=tempfile.gettempdir(),
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                text=True, encoding='utf-8')
+        except FileNotFoundError:
+            raise UpdateError('codex_missing') from None
+        except PermissionError:
+            raise UpdateError('codex_permission') from None
+        except OSError:
+            raise UpdateError('codex_start_failed') from None
         self.responses = queue.Queue()
         self.sequence = 0
         threading.Thread(target=self.read_lines, daemon=True).start()

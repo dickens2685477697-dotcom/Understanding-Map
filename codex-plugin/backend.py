@@ -123,7 +123,16 @@ def main():
         except MapSessionExpired as error:
             result = {'id': request.get('id'), 'error': str(error), 'error_code': 'map_session_expired'}
         except UpdateError as error:
-            result = {'id': request.get('id'), 'error': '读取或更新聊天失败（' + str(error) + '）。'}
+            code = str(error)
+            messages = {
+                'codex_missing': '未找到 Codex CLI。请确认 codex --version 可用，并完整退出后重新打开 Codex。',
+                'codex_permission': '无法启动 Codex CLI，系统拒绝访问。请检查 CLI 文件的运行权限。',
+                'codex_start_failed': 'Codex CLI 启动失败。请确认 codex --version 可用，并完整退出后重新打开 Codex。',
+                'source_unavailable': 'Codex CLI 已启动，但无法读取当前聊天。请更新 Codex 并从当前聊天重新打开理解地图。',
+                'source_timeout': '读取当前聊天超时，请点击更新重试。',
+            }
+            result = {'id': request.get('id'), 'error': messages.get(code, '读取或更新聊天失败（' + code + '）。'),
+                      'error_code': code}
         except Exception as error:
             # Avoid logging source text or token-scoped URLs.
             result = {'id': request.get('id'), 'error': '地图服务操作失败（' + type(error).__name__ + '）。'}

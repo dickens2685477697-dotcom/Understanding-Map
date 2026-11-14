@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+from io import StringIO
 from pathlib import Path
 import tempfile
 import threading
@@ -96,6 +97,21 @@ class BackendTests(unittest.TestCase):
         request = {**self.request('chat-a', 'refresh'), 'session': '00000000-0000-4000-8000-000000000001'}
         with self.assertRaises(backend.MapSessionExpired):
             backend.Backend().dispatch(request)
+
+    def test_startup_errors_retain_an_actionable_message_and_code(self):
+        for code, message in [('codex_missing', '未找到 Codex CLI'),
+                              ('codex_permission', '系统拒绝访问'),
+                              ('codex_start_failed', 'Codex CLI 启动失败')]:
+            output = StringIO()
+            request = json.dumps({'id': 1, 'action': 'open', 'thread_id': 'chat-a'}) + '\n'
+            with self.subTest(code=code), \
+                 patch.object(backend.Backend, 'dispatch', side_effect=backend.UpdateError(code)), \
+                 patch.object(backend.sys, 'stdin', StringIO(request)), \
+                 patch.object(backend.sys, 'stdout', output):
+                backend.main()
+            result = json.loads(output.getvalue())
+            self.assertEqual(result['error_code'], code)
+            self.assertIn(message, result['error'])
 
     def test_navigation_returns_before_helper_finishes_and_keeps_map_reads_available(self):
         self.open_map('chat-a')

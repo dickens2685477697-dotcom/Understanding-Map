@@ -31,7 +31,7 @@ test("the installed MCP configuration starts the sidebar tool from its plugin di
     const revision = createHash("sha256").update(resource.contents[0].text).digest("hex").slice(0, 12);
     assert.equal(entry._meta.ui.resourceUri, `ui://understanding-map/panel-${revision}.html`, "UI changes receive a new resource cache key");
     assert.match(resource.contents[0].text, /<title>Understanding Map<\/title>/);
-    assert.match(resource.contents[0].text, /updateStatus\.textContent=error\.message/);
+    assert.match(resource.contents[0].text, /updateStatus\.textContent=error\.code\?error\.message/);
     assert.doesNotMatch(resource.contents[0].text, /新消息由 Skill 整理后显示/);
   } finally {
     await client.close();

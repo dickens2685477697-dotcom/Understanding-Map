@@ -1,9 +1,18 @@
 import { App } from "@modelcontextprotocol/ext-apps";
 
-const app = new App({ name: "Understanding Map", version: "0.4.3" }, {}, { autoResize: true });
+const app = new App({ name: "Understanding Map", version: "0.4.4" }, {}, { autoResize: true });
 let resolveBinding;
 let rejectBinding;
 let reconnecting = null;
+
+function connectionError(error) {
+  if (/transport closed|not connected|connection closed/i.test(error?.message || '')) {
+    const disconnected = new Error('Codex 插件后台连接已中断，请完整退出并重新打开 Codex，再打开理解地图。');
+    disconnected.code = 'map_host_disconnected';
+    return disconnected;
+  }
+  return error;
+}
 window.understandingMapReady = new Promise((resolve, reject) => {
   resolveBinding = resolve;
   rejectBinding = reject;
@@ -15,7 +24,9 @@ app.addEventListener("toolresult", result => {
     window.understandingMapBinding = binding;
     resolveBinding(binding);
   } else if (result.isError) {
-    rejectBinding(new Error(result.content?.find(item => item.type === "text")?.text || "地图打开失败。"));
+    const error = new Error(result.content?.find(item => item.type === "text")?.text || "地图打开失败。");
+    error.code = result._meta?.error?.code;
+    rejectBinding(connectionError(error));
   }
 });
 
@@ -31,7 +42,9 @@ async function reconnect(binding) {
     reconnecting = app.callServerTool({ name: "understanding_map_open", arguments: {} }).then(result => {
       const replacement = toolResult(result)._meta?.understandingMap;
       if (!replacement?.session || replacement.threadId !== binding.threadId) {
-        throw new Error("当前聊天与地图不一致，请从当前聊天重新打开理解地图。");
+        const error = new Error("当前聊天与地图不一致，请从当前聊天重新打开理解地图。");
+        error.code = 'map_chat_mismatch';
+        throw error;
       }
       window.understandingMapBinding = replacement;
       return replacement;
@@ -56,15 +69,23 @@ window.understandingMapFetch = async (input, options = {}) => {
   } catch (error) {
     // Older desktop hosts turn isError results into rejected JSON-RPC calls.
     const expired = error.code === "map_session_expired" || error.message?.includes("地图连接已失效");
-    if (!expired) throw error;
-    const replacement = window.understandingMapBinding !== binding ? window.understandingMapBinding : await reconnect(binding);
-    result = toolResult(await request(replacement));
+    if (!expired) throw connectionError(error);
+    try {
+      const replacement = window.understandingMapBinding !== binding ? window.understandingMapBinding : await reconnect(binding);
+      result = toolResult(await request(replacement));
+    } catch (reconnectError) {
+      throw connectionError(reconnectError);
+    }
   }
   const response = result._meta?.response;
-  if (!response) throw new Error("地图服务返回了无效响应。");
+  if (!response) {
+    const error = new Error("地图服务返回了无效响应。");
+    error.code = 'map_invalid_response';
+    throw error;
+  }
   return new Response(JSON.stringify(response.body), {
     status: response.status, headers: { "Content-Type": "application/json" },
   });
 };
 
-app.connect().catch(rejectBinding);
+app.connect().catch(error => rejectBinding(connectionError(error)));

@@ -241,7 +241,7 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
  document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;syncMode();savePrefs();render()}));
  document.querySelector('#source-close').addEventListener('click',()=>{selectedId=null;selectedSource='';sourcePanel.hidden=true;syncSelection();savePrefs()});
  sourceCopy.addEventListener('click',async()=>{try{if(!selectedSource||!navigator.clipboard)throw Error('unavailable');await navigator.clipboard.writeText(selectedSource.slice(0,60));sourceHelp.textContent='已复制，回到聊天后按 ⌘F 粘贴查找'}catch{sourceHelp.textContent='复制失败，请选中原文手动复制'}});
- async function refresh(){try{const r=await fetch('map-view.json',{cache:'no-store'});if(!r.ok)throw Error('unavailable');const raw=await r.text();if(raw===last)return;const v=JSON.parse(raw);if(!Array.isArray(v.nodes))throw Error('invalid');nodes=v.nodes.filter(n=>n&&typeof n.id==='string'&&typeof n.summary==='string');topics=Array.isArray(v.topics)?v.topics:[];last=raw;hasData=true;status.textContent=`已载入 ${new Set(nodes.filter(n=>n.role==='user').map(n=>n.turn_id)).size} 轮对话 · 打开或刷新时整理新增消息`;render();if(initialRender){initialRender=false;if(restoreSource){restoreSource=false;const selected=nodes.find(n=>n.id===selectedId);if(selected)selectNode(selected,false)}if(restoreScroll>0)requestAnimationFrame(()=>window.scrollTo(0,restoreScroll))}}catch{status.textContent=hasData?'地图服务暂不可用，保留上次的内容':'等待本机更新任务生成地图'}}
+ async function refresh(){try{const r=await fetch('map-view.json',{cache:'no-store'});if(!r.ok)throw Error('unavailable');const raw=await r.text();if(raw===last)return;const v=JSON.parse(raw);if(!Array.isArray(v.nodes))throw Error('invalid');nodes=v.nodes.filter(n=>n&&typeof n.id==='string'&&typeof n.summary==='string');topics=Array.isArray(v.topics)?v.topics:[];last=raw;hasData=true;status.textContent=`已载入 ${new Set(nodes.filter(n=>n.role==='user').map(n=>n.turn_id)).size} 轮对话 · 打开或刷新时整理新增消息`;render();if(initialRender){initialRender=false;if(restoreSource){restoreSource=false;const selected=nodes.find(n=>n.id===selectedId);if(selected)selectNode(selected,false)}if(restoreScroll>0)requestAnimationFrame(()=>window.scrollTo(0,restoreScroll))}}catch(error){status.textContent=error.code?error.message:(hasData?'地图服务暂不可用，保留上次的内容':'等待本机更新任务生成地图')}}
  function showUpdate(job){
   updateRunning=['checking','summarizing','classifying'].includes(job.status);
   updateButton.disabled=updateRunning;
@@ -249,7 +249,7 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
   if(job.added_messages)updated.push(`新增 ${job.added_messages} 条摘要`);
   if(job.classified_messages)updated.push(`补齐 ${job.classified_messages} 条消息标签`);
   const messages={checking:'正在检查新对话…',classifying:`正在补齐 ${job.classified_messages||0} 条消息标签…`,summarizing:`正在整理 ${job.added_messages||0} 条新消息…`,updated:`地图已更新${updated.length?'，'+updated.join('，'):''}`,unchanged:'已检查，暂无新增用户消息'};
-  const errors={codex_missing:'未找到 Codex CLI，请安装或配置本机 Codex',source_unavailable:'无法读取当前聊天，请检查 Codex 本机接口',source_timeout:'读取聊天超时，请重试',source_mismatch:'聊天来源与地图不一致',model_timeout:'摘要任务超时，请检查本机 Codex 的模型连接后重试',model_failed:'摘要任务失败，请检查本机 Codex 认证与模型连接',source_changed:'已保存的消息发生变化，请核对原文后重试',state_changed:'地图被另一任务更新，请再次刷新',invalid_summary:'摘要结果未通过校验，请重试',busy:'另一更新任务正在运行，请稍后重试'};
+  const errors={codex_permission:'无法启动 Codex CLI，请检查运行权限',codex_start_failed:'Codex CLI 启动失败，请确认 codex --version 可用并重启 Codex',codex_missing:'未找到 Codex CLI，请安装或配置本机 Codex',source_unavailable:'无法读取当前聊天，请检查 Codex 本机接口',source_timeout:'读取聊天超时，请重试',source_mismatch:'聊天来源与地图不一致',model_timeout:'摘要任务超时，请检查本机 Codex 的模型连接后重试',model_failed:'摘要任务失败，请检查本机 Codex 认证与模型连接',source_changed:'已保存的消息发生变化，请核对原文后重试',state_changed:'地图被另一任务更新，请再次刷新',invalid_summary:'摘要结果未通过校验，请重试',busy:'另一更新任务正在运行，请稍后重试'};
   updateStatus.textContent=job.status==='error'?(errors[job.error]||'更新未完成，请重试'):messages[job.status]||'';
  }
  async function requestUpdate(){
@@ -261,7 +261,7 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
    if(!response.ok)throw Error('unavailable');
    const job=await response.json();activeUpdateId=job.id;showUpdate(job);
    if(job.status==='updated'||job.status==='unchanged')await refresh();
-  }catch{showUpdate({status:'error'});updateStatus.textContent='无法启动更新，请检查本机地图服务后重试'}finally{requestingUpdate=false}
+  }catch(error){showUpdate({status:'error'});updateStatus.textContent=error.code?error.message:'无法启动更新，请检查本机地图服务后重试'}finally{requestingUpdate=false}
  }
  async function pollUpdate(){
   if(!updateRunning||requestingUpdate)return;
@@ -272,7 +272,7 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
    if(!updateRunning||job.id!==activeUpdateId)return;
    showUpdate(job);
    if(job.status==='updated'||job.status==='unchanged')await refresh();
-  }catch{showUpdate({status:'error'});updateStatus.textContent='更新状态暂不可用，请检查本机服务后重试'}
+  }catch(error){showUpdate({status:'error'});updateStatus.textContent=error.code?error.message:'更新状态暂不可用，请检查本机服务后重试'}
  }
  updateButton.addEventListener('click',requestUpdate);
  window.addEventListener('scroll',()=>{clearTimeout(scrollTimer);scrollTimer=setTimeout(savePrefs,250)},{passive:true});

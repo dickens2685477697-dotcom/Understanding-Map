@@ -57,7 +57,7 @@ def package(output=None):
 
 - 安装 Codex 桌面版。
 - 安装 Node.js 20+，确保 `node --version` 可用。
-- 安装 Python 3.9+。Mac 需有 `python3` 命令，Windows 需有 `python` 命令。
+- 安装 Python 3.9+。Mac 需有 `python3` 命令，Windows 支持 `py -3`、`python` 或 `python3`。
 - 确保 `codex` 命令可用，并已用自己的账号登录或配置 API。可用 `codex login status` 检查。
 - 当前 Mac 原文定位辅助程序面向 Apple Silicon 与 macOS 15+。
 
@@ -89,7 +89,21 @@ codex plugin add understanding-map@understanding-map-local
 
 ## 日常使用
 
-在 Codex 的聊天侧边打开“理解地图”。首次打开整理该聊天历史，之后打开或刷新地图、点击“更新地图”时检查新增用户消息。摘要前显示询问、想法、需求、反馈、确认中的主要意图，承接设想的“开始做”按需求理解。旧地图更新时补齐缺失标签。内容相同且标签齐全时复用结果。点击节点请求定位原文。
+在 Codex 的聊天侧边打开“理解地图”。面板首次加载时整理该聊天历史，真正刷新或重新加载面板、点击“更新地图”时检查新增用户消息。宿主可能复用已挂载页面，发送新消息后请点击“更新地图”。摘要前显示询问、想法、需求、反馈、确认中的主要意图，承接设想的“开始做”按需求理解。旧地图更新时补齐缺失标签。内容相同且标签齐全时复用结果。点击节点请求定位原文。
+
+## 首次启动失败时
+
+Windows 安装或更新 Node.js、Python、Codex CLI 后，先完整退出 Codex 的所有窗口，再重新打开。在 PowerShell 中分别检查以下命令。
+
+```powershell
+node --version
+py -3 --version
+codex --version
+```
+
+Node.js 应为 20+，Python 应为 3.9+。如果 `py -3` 不可用，可检查 `python --version` 或 `python3 --version`。插件会检测可用的解释器。
+
+如果依然启动失败，请提供地图内的完整错误文字。Python 缺失、版本不足、Codex CLI 缺失和插件后台连接中断会显示对应提示。安装后按包内命令注册插件，再从 Codex 的“更多工具…”进入地图。
 
 ## 数据和用量
 

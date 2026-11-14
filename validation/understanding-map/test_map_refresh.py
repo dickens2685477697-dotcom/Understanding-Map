@@ -25,6 +25,16 @@ def model_result(session, pending):
 
 
 class RefreshTests(unittest.TestCase):
+    def test_reader_identifies_cli_launch_failures(self):
+        for failure, code in [(FileNotFoundError(), 'codex_missing'),
+                              (PermissionError(), 'codex_permission'),
+                              (OSError(), 'codex_start_failed')]:
+            with self.subTest(code=code), \
+                 patch.object(refresh, 'codex_binary', return_value='fixture-codex'), \
+                 patch.object(refresh.subprocess, 'Popen', side_effect=failure):
+                with self.assertRaisesRegex(refresh.UpdateError, code):
+                    refresh.CodexReader().__enter__()
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

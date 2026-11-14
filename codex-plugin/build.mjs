@@ -51,8 +51,6 @@ let script = html.slice(scriptStart + 8, scriptEnd);
 script = script.replaceAll("fetch(", "window.understandingMapFetch(");
 script = script.replace("${location.pathname}", "${window.understandingMapBinding.threadId}");
 script = script.replaceAll("新消息由 Skill 整理后显示", "打开或刷新时整理新增消息");
-script = script.replace("}catch{showUpdate({status:'error'});updateStatus.textContent='无法启动更新，请检查本机地图服务后重试'}",
-  "}catch(error){showUpdate({status:'error'});updateStatus.textContent=error.message||'无法启动更新，请重新打开理解地图后重试'}");
 html = html.slice(0, scriptStart) + "<script>" + bridge.outputFiles[0].text.replaceAll("</script", "<\\/script")
   + "\nwindow.understandingMapReady.then(() => {\n" + script + "\n}).catch(error => {document.querySelector('#refresh-status').textContent=error.message});\n</script>"
   + html.slice(scriptEnd + 9);
