@@ -73,7 +73,7 @@ codex exec --ephemeral --skip-git-repo-check --sandbox read-only "只回复 OK�
 
 ### Windows 点击后出现空查找框
 
-0.4.5 更新了 Windows 原文定位组件，支持直接识别已有的聊天查找输入框，兼容范围按钮隐藏的界面。若旧版点击摘要只打开查找框，请安装新版并完整退出 Codex 的所有窗口，再重开聊天和地图后点击摘要。此路径仍需 Windows 实机确认，定位失败时地图会显示简短原因。
+0.4.5 更新了 Windows 原文定位组件，支持直接识别已有的聊天查找输入框，兼容范围按钮隐藏的界面。若旧版点击摘要只打开查找框，请安装新版并完整退出 Codex 的所有窗口，再重开聊天和地图后点击摘要。2026-11-15，用户已在 Windows 电脑确认点击摘要后原文自动填入并成功跳转。定位失败时地图会显示简短原因。
 
 ### 打开当前聊天的理解地图
 
@@ -217,7 +217,7 @@ DeepSeek 会保留已挂载的地图面板。面板隐藏后再次显示时，�
 
 - Codex `0.4.5` 包含五类意图标签、灰玫瑰配色、日常与开发模式及原文定位兼容修复。macOS 已验证侧边打开、刷新更新、重启恢复和旧连接自动重连。
 - macOS 导航辅助程序的较长消息和短用户消息跳转已实测成功。短消息通过同轮回复的唯一片段定位上下文，其他电脑上的原生跳转仍需验证。
-- Windows UI Automation 辅助程序已交叉编译并通过纯协议检查，Windows 原生界面跳转仍待实机验证。
+- Windows UI Automation 辅助程序已交叉编译并通过纯协议检查。2026-11-15，用户确认 Codex 插件 `0.4.5` 在其 Windows 电脑上点击摘要后自动填入原文并跳转。该实测覆盖一台电脑，其他 Windows 环境仍需验证。
 - Codex 插件包已验证解压后的独立启动、Python 后台读取、侧边入口声明及隔离安装。Mac 测试包使用本地签名。
 - DeepSeek Harness `0.3.2` 包含相同的意图标签与配色，并优化了摘要提示词。本次已在 macOS 原生 Harness 中实测旧地图标签补齐、5→6 条发言增量更新、新摘要短标题和点击原文定位，截图来自这次操作。此前已在 macOS Harness `0.2.2-rc.1` 实测层级与时间视图及重启恢复。Windows、英文界面、超长历史分页和附件单独消息仍需实机验收。详见 [DeepSeek 说明](deepseek-harness/README.md)。
 
@@ -278,7 +278,7 @@ python3 validation/understanding-map/distribution/test_distribution.py
 
 ### 构建 Codex 插件包
 
-插件构建使用当前 Swift 源码生成 macOS 定位辅助程序，并复用 `0.2.0-test.1` Release 中的 Windows 辅助程序。准备该附件后，在 `codex-plugin` 目录执行构建与打包，详细命令见 [插件开发说明](codex-plugin/README.md)。发布产物位于 `codex-plugin/releases/`。
+插件构建使用当前 Swift 和 C# 源码生成 macOS 与 Windows 定位辅助程序，打包时校验 Windows 组件的源码和二进制摘要。准备所需附件与构建依赖后，在 `codex-plugin` 目录执行构建与打包，详细命令见 [插件开发说明](codex-plugin/README.md)。发布产物位于 `codex-plugin/releases/`。
 
 ### 开发模式
 
