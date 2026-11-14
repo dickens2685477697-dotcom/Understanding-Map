@@ -248,8 +248,8 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
   const updated=[];
   if(job.added_messages)updated.push(`新增 ${job.added_messages} 条摘要`);
   if(job.classified_messages)updated.push(`补齐 ${job.classified_messages} 条消息标签`);
-  const messages={checking:'正在检查新对话…',classifying:`正在补齐 ${job.classified_messages||0} 条消息标签…`,summarizing:`正在整理 ${job.added_messages||0} 条新消息…`,updated:`地图已更新${updated.length?'，'+updated.join('，'):''}`,unchanged:'已检查，暂无新增用户消息'};
-  const errors={codex_permission:'无法启动 Codex CLI，请检查运行权限',codex_start_failed:'Codex CLI 启动失败，请确认 codex --version 可用并重启 Codex',codex_missing:'未找到 Codex CLI，请安装或配置本机 Codex',source_unavailable:'无法读取当前聊天，请检查 Codex 本机接口',source_timeout:'读取聊天超时，请重试',source_mismatch:'聊天来源与地图不一致',model_timeout:'摘要任务超时，请检查本机 Codex 的模型连接后重试',model_failed:'摘要任务失败，请检查本机 Codex 认证与模型连接',source_changed:'已保存的消息发生变化，请核对原文后重试',state_changed:'地图被另一任务更新，请再次刷新',invalid_summary:'摘要结果未通过校验，请重试',busy:'另一更新任务正在运行，请稍后重试'};
+  const messages={checking:'正在检查新对话…',classifying:`正在补齐 ${job.remaining_messages??job.classified_messages??0} 条消息标签…`,summarizing:`正在整理 ${job.remaining_messages??job.added_messages??0} 条新消息…`,updated:`地图已更新${updated.length?'，'+updated.join('，'):''}`,unchanged:'已检查，暂无新增用户消息'};
+  const errors={codex_permission:'无法启动 Codex CLI，请检查运行权限',codex_start_failed:'Codex CLI 启动失败，请确认 codex --version 可用并重启 Codex',codex_missing:'未找到 Codex CLI，请安装或配置本机 Codex',source_unavailable:'无法读取当前聊天，请检查 Codex 本机接口',source_timeout:'读取聊天超时，请重试',source_mismatch:'聊天来源与地图不一致',model_timeout:'当前批次摘要超过 5 分钟，已保存的结果会保留，请点击更新重试',model_auth_failed:'摘要模型认证失败，请检查本机 Codex CLI 登录或 API 配置',model_rate_limited:'摘要模型额度或速率受限，请检查用量后重试',model_connection_failed:'摘要模型连接失败，请检查本机 Codex CLI 的网络与模型地址后重试',model_failed:'摘要任务失败，请检查本机 Codex 认证与模型连接',source_changed:'已保存的消息发生变化，请核对原文后重试',state_changed:'地图被另一任务更新，请再次刷新',invalid_summary:'摘要结果未通过校验，请重试',busy:'另一更新任务正在运行，请稍后重试'};
   updateStatus.textContent=job.status==='error'?(errors[job.error]||'更新未完成，请重试'):messages[job.status]||'';
  }
  async function requestUpdate(){

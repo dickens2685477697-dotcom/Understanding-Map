@@ -54,6 +54,127 @@ class RefreshTests(unittest.TestCase):
     def session(self):
         return json.loads((self.folder / 'state.json').read_text())['sessions']['test-chat']
 
+    def test_initial_history_is_saved_in_batches_with_cross_batch_topics_and_parents(self):
+        snapshot = [turn(f't{i}', [user(f'u{i}')], 'completed') for i in range(17)]
+        sizes = []
+        def summarize_batch(session, pending):
+            sizes.append(len(pending))
+            result = model_result(session, pending)
+            if len(sizes) == 1:
+                result['topics'] = [{'id': 'history', 'label': '历史话题', 'parent_id': None}]
+            else:
+                self.assertEqual(len(session['nodes']), 16)
+                self.assertEqual(len(self.session()['nodes']), 16)
+                self.assertEqual(self.session()['processed_turn_ids'], [f't{i}' for i in range(16)])
+                view = json.loads((self.folder / 'map-view.json').read_text())
+                self.assertEqual(len(view['nodes']), 16)
+                self.assertEqual(session['topics'][0]['id'], 'history')
+                result['messages'][0]['parent_message_ids'] = ['u15']
+            for row in result['messages']:
+                row['topic_id'] = 'history'
+            return result
+        self.assertEqual(self.update(snapshot, summarize_batch), 17)
+        self.assertEqual(sizes, [16, 1])
+        self.assertEqual(self.session()['processed_turn_ids'], [f't{i}' for i in range(17)])
+        self.assertEqual(self.session()['nodes'][-1]['parent_ids'], ['node-u15'])
+        self.assertEqual(self.progress.call_args_list[-1].args, ('summarizing', 1))
+
+    def test_later_batch_timeout_preserves_partial_turn_and_retry_only_summarizes_the_rest(self):
+        snapshot = [turn('t1', [user(f'u{i}') for i in range(18)], 'completed')]
+        calls = 0
+        def fail_second_batch(session, pending):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise refresh.UpdateError('model_timeout')
+            return model_result(session, pending)
+        with self.assertRaisesRegex(refresh.UpdateError, 'model_timeout'):
+            self.update(snapshot, fail_second_batch)
+        saved = self.session()
+        self.assertEqual(len(saved['nodes']), 16)
+        self.assertEqual(len(saved['turns'][0]['messages']), 18)
+        self.assertEqual(saved['processed_turn_ids'], [])
+        self.assertEqual(len(json.loads((self.folder / 'map-view.json').read_text())['nodes']), 16)
+        def finish_batch(session, pending):
+            self.assertEqual([message['message_id'] for message in pending], ['u16', 'u17'])
+            self.assertEqual(session['nodes'], saved['nodes'])
+            result = model_result(session, pending)
+            result['messages'][0]['parent_message_ids'] = ['u15']
+            result['messages'][1]['parent_message_ids'] = ['u16']
+            return result
+        model = Mock(side_effect=finish_batch)
+        self.assertEqual(self.update(snapshot, model), 2)
+        self.assertEqual(self.session()['nodes'][:16], saved['nodes'])
+        self.assertEqual(self.session()['processed_turn_ids'], ['t1'])
+        self.assertEqual(self.session()['nodes'][-1]['parent_ids'], ['node-u16'])
+        self.assertEqual(self.update(snapshot, model), 0)
+        self.assertEqual(model.call_count, 1)
+
+    def test_legacy_classification_batches_preserve_nodes_and_can_mix_with_new_messages(self):
+        snapshot = [turn(f't{i}', [user(f'u{i}')], 'completed') for i in range(17)]
+        self.update(snapshot)
+        state = json.loads((self.folder / 'state.json').read_text())
+        original = state['sessions']['test-chat']['nodes']
+        for node in original:
+            del node['intent']
+        (self.folder / 'state.json').write_text(json.dumps(state))
+        sizes = []
+        def classify_batch(session, pending):
+            sizes.append(len(pending))
+            result = model_result(session, pending)
+            if len(sizes) == 2:
+                checkpoint = self.session()['nodes']
+                self.assertTrue(all(node['intent'] == 'idea' for node in checkpoint[:16]))
+                self.assertNotIn('intent', checkpoint[16])
+                self.assertEqual([message['message_id'] for message in pending], ['u16', 'u17', 'u18'])
+            for message, row in zip(pending, result['messages']):
+                if 'existing_summary' in message:
+                    row.update(intent='idea', summary='不应覆盖旧摘要', parent_message_ids=['unknown'])
+                else:
+                    row.update(intent='request', parent_message_ids=['u16'])
+            return result
+        snapshot.extend([turn('t17', [user('u17')]), turn('t18', [user('u18')])])
+        self.assertEqual(self.update(snapshot, classify_batch), 2)
+        self.assertEqual(sizes, [16, 3])
+        self.assertEqual(self.session()['nodes'][:17], [{**node, 'intent': 'idea'} for node in original])
+        self.assertEqual(self.session()['nodes'][-1]['parent_ids'], ['node-u16'])
+
+    def test_external_state_change_in_a_later_batch_is_preserved(self):
+        snapshot = [turn(f't{i}', [user(f'u{i}')], 'completed') for i in range(17)]
+        calls = 0
+        external = '{"external":"later update"}'
+        def change_after_checkpoint(session, pending):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                self.assertEqual(len(self.session()['nodes']), 16)
+                (self.folder / 'state.json').write_text(external)
+            return model_result(session, pending)
+        with self.assertRaisesRegex(refresh.UpdateError, 'state_changed'):
+            self.update(snapshot, change_after_checkpoint)
+        self.assertEqual((self.folder / 'state.json').read_text(), external)
+        self.assertEqual(len(json.loads((self.folder / 'map-view.json').read_text())['nodes']), 16)
+
+    def test_later_publish_failure_is_repaired_without_resummarizing_committed_batches(self):
+        snapshot = [turn(f't{i}', [user(f'u{i}')], 'completed') for i in range(17)]
+        publish = refresh.publish
+        calls = 0
+        def fail_second_publish(*args):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError('publisher unavailable')
+            return publish(*args)
+        with patch.object(refresh, 'publish', side_effect=fail_second_publish):
+            with self.assertRaises(OSError):
+                self.update(snapshot)
+        self.assertEqual(len(self.session()['nodes']), 17)
+        self.assertEqual(len(json.loads((self.folder / 'map-view.json').read_text())['nodes']), 16)
+        model = Mock(side_effect=AssertionError('saved batches must be reused'))
+        self.assertEqual(self.update(snapshot, model), 0)
+        self.assertEqual(model.call_count, 0)
+        self.assertEqual(len(json.loads((self.folder / 'map-view.json').read_text())['nodes']), 17)
+
     def test_in_progress_message_is_summarized_once_and_final_context_is_collected_later(self):
         snapshot = [turn('t1', [user('u1')])]
         model = Mock(side_effect=model_result)

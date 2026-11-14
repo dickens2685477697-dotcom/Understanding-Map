@@ -2,9 +2,24 @@
   "mcpServers": {
     "understanding_map": {
       "command": "node",
-      "args": ["dist/server.mjs"],
+      "args": [
+        "dist/server.mjs"
+      ],
       "cwd": ".",
-      "env_vars": ["PATH", "UNDERSTANDING_MAP_HOME", "UNDERSTANDING_MAP_PYTHON", "UNDERSTANDING_MAP_CODEX"],
+      "env_vars": [
+        "PATH",
+        "UNDERSTANDING_MAP_HOME",
+        "UNDERSTANDING_MAP_PYTHON",
+        "UNDERSTANDING_MAP_CODEX",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "NO_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+        "no_proxy"
+      ],
       "startup_timeout_sec": 15,
       "tool_timeout_sec": 120
     }

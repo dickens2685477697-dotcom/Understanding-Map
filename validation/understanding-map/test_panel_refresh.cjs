@@ -45,7 +45,7 @@ const assert=require('node:assert/strict');
  assert.match(doc.querySelector('#refresh-status').textContent,/暂无新增/);
  job={id:'job-3',status:'error',error:'model_timeout',private:'private detail'};
  doc.querySelector('#map-refresh').click();await settle();
- assert.match(doc.querySelector('#refresh-status').textContent,/摘要任务超时/);
+ assert.match(doc.querySelector('#refresh-status').textContent,/当前批次摘要超过 5 分钟/);
  assert.doesNotMatch(doc.querySelector('#refresh-status').textContent,/private detail/);
  assert.equal(doc.querySelectorAll('.outline-leaf').length,1,'errors preserve the last displayed map');
  failure='refresh';
