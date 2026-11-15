@@ -4,7 +4,7 @@
 
 Understanding Map 在聊天旁把你的每次发言整理成简短摘要，按话题层级或时间顺序展示。你可以回顾已经走过的思路，找到还想继续追问的分支，再点击摘要回到原文，接着讨论。
 
-目前提供 Codex 桌面本地插件和独立的 DeepSeek Harness 原生插件。两端都在聊天右侧显示地图，支持“按层级”“按时间”、增量更新和点击原文定位。
+目前提供 Codex 桌面本地插件和独立的 DeepSeek Harness 原生插件。两端都在聊天右侧显示地图，支持“按层级”“按时间”、顶部标签筛选、增量更新和点击原文定位。
 
 [Codex 图文流程](#在-codex-中使用) · [DeepSeek 图文流程](#在-deepseek-harness-中使用) · [更新规则](#地图如何更新)
 
@@ -12,12 +12,12 @@ Understanding Map 在聊天旁把你的每次发言整理成简短摘要，按�
 
 | 使用环境 | 当前版本 | 下载文件 | 安装说明 |
 | --- | --- | --- | --- |
-| Codex 桌面版 | `0.4.5` 测试版 | [Understanding-Map-Codex-0.4.5.zip](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/download/v0.4.5/Understanding-Map-Codex-0.4.5.zip) | 包内 `START-HERE.md` 或附件 `START-HERE-Codex.md` |
-| DeepSeek Harness | `0.3.2` 测试版 | [Understanding-Map-DeepSeek-0.3.2.zip](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/download/v0.4.3/Understanding-Map-DeepSeek-0.3.2.zip) | 包内 `START-HERE.md` 或附件 `START-HERE-DeepSeek.md` |
+| Codex 桌面版 | `0.5.0` 测试版 | [Understanding-Map-Codex-0.5.0.zip](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/download/v0.5.0/Understanding-Map-Codex-0.5.0.zip) | 包内 `START-HERE.md` 或附件 `START-HERE-Codex.md` |
+| DeepSeek Harness | `0.4.0` 测试版 | [Understanding-Map-DeepSeek-0.4.0.zip](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/download/v0.5.0/Understanding-Map-DeepSeek-0.4.0.zip) | 包内 `START-HERE.md` 或附件 `START-HERE-DeepSeek.md` |
 
-安装包各附有 SHA-256 校验文件和安装说明。当前仓库为私有，GitHub 下载需要仓库访问权限，也可以直接向接收者分享原始 ZIP。[Codex 0.4.5 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.4.5) · [DeepSeek 0.3.2 所在 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.4.3)
+安装包各附有 SHA-256 校验文件和安装说明。当前仓库为私有，GitHub 下载需要仓库访问权限，也可以直接向接收者分享原始 ZIP。[打开两端最新 Release](https://github.com/dickens2685477697-dotcom/Understanding-Map/releases/tag/v0.5.0)
 
-截图来自 macOS 桌面版，点击可查看原图。
+截图来自此前的 macOS 桌面版本，点击可查看原图。新增标签筛选的使用规则见下文。
 
 ## 在 Codex 中使用
 
@@ -25,7 +25,7 @@ Understanding Map 在聊天旁把你的每次发言整理成简短摘要，按�
 
 准备 Codex 桌面版、Node.js 20+、Python 3.9+，并确保 Codex CLI 已用自己的账号登录或配置 API。Mac 使用 `python3`，Windows 支持 `py -3`、`python` 或 `python3`。Mac 原文定位辅助程序面向 Apple Silicon 和 macOS 15+，首次使用需要授予辅助功能权限。
 
-下载 Codex ZIP，解压完整的 `Understanding-Map-Codex-0.4.5` 文件夹，放到准备长期保留的位置。在该文件夹打开终端或 PowerShell，执行以下两条命令。
+下载 Codex ZIP，解压完整的 `Understanding-Map-Codex-0.5.0` 文件夹，放到准备长期保留的位置。在该文件夹打开终端或 PowerShell，执行以下两条命令。
 
 ```sh
 codex plugin marketplace add .
@@ -89,7 +89,7 @@ codex exec --ephemeral --skip-git-repo-check --sandbox read-only "只回复 OK�
 - 点击“按时间”，按每次发言的原始顺序回顾思路。
 - 点击摘要，地图会请求定位当前 Codex 原生聊天中的对应原文。
 
-蓝色深浅和横向缩进表示话题的包含层级。Codex 时间视图按发言顺序编号，层级视图按原对话轮次标注，灰玫瑰色标签表示这次发言的主要意图。
+蓝色深浅和横向缩进表示话题的包含层级。两种视图都保留每次用户发言的原始序号，灰玫瑰色标签表示这次发言的主要意图。
 
 <a href="docs/screenshots/codex-outline.png"><img src="docs/screenshots/codex-outline.png" alt="Codex 理解地图的按层级视图，顶部提供按时间和更新地图按钮，摘要前显示意图标签" width="700"></a>
 
@@ -107,12 +107,12 @@ codex exec --ephemeral --skip-git-repo-check --sandbox read-only "只回复 OK�
 
 ### 安装插件并启用
 
-准备支持本地插件的 DeepSeek Harness，并选择可用的模型与供应商。下载 DeepSeek ZIP，解压完整的 `Understanding-Map-DeepSeek-0.3.2` 文件夹，放到准备长期保留的位置。
+准备支持本地插件的 DeepSeek Harness，并选择可用的模型与供应商。下载 DeepSeek ZIP，解压完整的 `Understanding-Map-DeepSeek-0.4.0` 文件夹，放到准备长期保留的位置。
 
 在 Harness 中，请助手使用原生 `plugin_manager` 工具安装。将 `target` 换成自己电脑上解压目录的完整绝对路径。
 
 ```json
-{"action":"install_bundle","target":"/absolute/path/to/Understanding-Map-DeepSeek-0.3.2"}
+{"action":"install_bundle","target":"/absolute/path/to/Understanding-Map-DeepSeek-0.4.0"}
 ```
 
 通过 Harness 的安装审批，根据插件管理器提示启用插件并重新启动 Harness。从旧版升级时，对新版目录执行同一安装命令，再按提示完成更新和重启。链接安装需要长期保留插件目录。
@@ -138,6 +138,18 @@ codex exec --ephemeral --skip-git-repo-check --sandbox read-only "只回复 OK�
 这次更新为新发言生成了“三天阅读安排增加周末回顾环节”的短标题，先前已保存的摘要继续复用。
 
 DeepSeek 会保留已挂载的地图面板。面板隐藏后再次显示时，可以继续查看已保存的内容。想检查最新发言时，点击“更新地图”。
+
+## 按标签筛选
+
+Codex `0.5.0` 与 DeepSeek `0.4.0` 将标签放在地图顶部，提供“全部、询问、想法、需求、反馈、确认”和各标签的发言数量。点击一个或多个标签，显示任意一个选中标签匹配的发言。例如同时选择“需求”和“反馈”，即可集中回看提出的功能与使用结果。“全部”或“清除筛选”恢复完整地图，取消最后一个标签也恢复全部。
+
+两种视图共用筛选选择，并按聊天分别保存。
+
+- “按层级”隐藏没有匹配内容的话题分支，保留匹配内容所在的祖先话题标题。
+- “按时间”将连续未匹配的发言收成“已隐藏 N 条”，同时标出原始序号范围。点击可展开为较淡的原始摘要，再次点击可收起。展开后的发言仍可点击定位。
+- 原始序号、横向位置与蓝色深浅沿用完整地图的层级。实线仅表示原本存在、且两端当前可见的承接关系，灰色虚线仍表示时间顺序。
+
+标签筛选和展开隐藏片段只处理本机已有地图，不调用模型、不消耗模型 Token，也不修改已保存的摘要、层级或原文定位标识。没有标签的旧发言可以在“全部”中查看，点击“更新地图”后按原有规则补齐缺失标签。
 
 ## 地图如何更新
 
@@ -165,7 +177,7 @@ DeepSeek 会保留已挂载的地图面板。面板隐藏后再次显示时，�
 
 - 新增发言的摘要生成、旧节点的标签或分类补齐会使用模型额度。
 - 没有新增消息且所需字段齐全时，检查会跳过模型调用，复用已保存地图。
-- 切换视图、折叠话题、读取已保存结果和点击原文定位使用本机数据与界面。
+- 标签筛选、展开隐藏片段、切换视图、折叠话题、读取已保存结果和点击原文定位使用本机数据与界面。
 - Codex 使用每位使用者自己的 Codex CLI 登录或 API 配置，通过独立摘要任务生成结果。
 - DeepSeek 使用当前 Harness 会话选择的模型与供应商。
 - 更新过程中重复触发同一聊天的更新，会复用正在运行的任务。失败后可再次点击“更新地图”重试。
@@ -215,6 +227,7 @@ DeepSeek 会保留已挂载的地图面板。面板隐藏后再次显示时，�
 
 ## 兼容性与验证范围
 
+- Codex `0.5.0` 与 DeepSeek `0.4.0` 新增标签筛选和时间片段折叠。新增界面的原生宿主验收仍需完成，下列实测记录保留各自对应版本的范围。
 - Codex `0.4.5` 包含五类意图标签、灰玫瑰配色、日常与开发模式及原文定位兼容修复。macOS 已验证侧边打开、刷新更新、重启恢复和旧连接自动重连。
 - macOS 导航辅助程序的较长消息和短用户消息跳转已实测成功。短消息通过同轮回复的唯一片段定位上下文，其他电脑上的原生跳转仍需验证。
 - Windows UI Automation 辅助程序已交叉编译并通过纯协议检查。2026-11-15，用户确认 Codex 插件 `0.4.5` 在其 Windows 电脑上点击摘要后自动填入原文并跳转。该实测覆盖一台电脑，其他 Windows 环境仍需验证。
@@ -279,6 +292,10 @@ python3 validation/understanding-map/distribution/test_distribution.py
 ### 构建 Codex 插件包
 
 插件构建使用当前 Swift 和 C# 源码生成 macOS 与 Windows 定位辅助程序，打包时校验 Windows 组件的源码和二进制摘要。准备所需附件与构建依赖后，在 `codex-plugin` 目录执行构建与打包，详细命令见 [插件开发说明](codex-plugin/README.md)。发布产物位于 `codex-plugin/releases/`。
+
+### 构建 DeepSeek 插件包
+
+在仓库根目录执行 `python3 deepseek-harness/package_release.py`，按程序文件白名单生成 ZIP、SHA-256 和安装说明。产物位于 `deepseek-harness/releases/`。详细命令与安装方式见 [DeepSeek 说明](deepseek-harness/README.md)。
 
 ### 开发模式
 

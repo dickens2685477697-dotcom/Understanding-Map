@@ -16,9 +16,28 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
 .intent-tag[data-intent="request"]{background:#E3B6C7;color:#5B2A40}
 .intent-tag[data-intent="feedback"]{background:#C88DA3;color:#411B2C}
 .intent-tag[data-intent="confirmation"]{background:#91556F;color:#FFF7FA}
+.tag-filters{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-bottom:10px;margin-bottom:12px;border-bottom:1px solid light-dark(#e9eaee,#3b3d43)}
+.tag-filter{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid transparent;border-radius:6px;font-size:12px;color:var(--muted)}
+.tag-filter .filter-count{font-size:11px;font-variant-numeric:tabular-nums;opacity:.8}
+.tag-filter[aria-pressed=true]{background:light-dark(#f3dce4,#513440);color:light-dark(#6e3a50,#f0c6d8)}
+.tag-filter:not([data-intent-filter=all])[aria-pressed=true]::before{content:'✓';font-size:11px}
+.tag-filter[data-intent-filter=all][aria-pressed=true]{background:light-dark(#f2f4f7,#303237);color:var(--fg)}
+.tag-filter:focus-visible,.time-gap:focus-visible,#clear-filters:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.filter-info{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px;color:var(--muted);font-size:12px}
+#clear-filters{font-size:12px;padding:2px 0;color:light-dark(#91556f,#d49db6)}
+#clear-filters[hidden]{display:none}
+.time-layout{min-width:0}.time-rows{align-self:start}.time-graph{align-self:start}
+.time-leaf{box-sizing:border-box;min-width:0;min-height:48px;padding:10px 12px}.time-leaf .node-action{display:none}
+.time-gap{box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;min-height:32px;padding:5px 12px;text-align:left;font-size:12px;color:var(--muted);white-space:normal;border-radius:5px}
+.time-gap:hover{background:light-dark(#f5f6f8,#292b30)}.time-gap-range{font-variant-numeric:tabular-nums;opacity:.8}
+.filtered-context{opacity:.55}.time-graph circle.filtered-context{fill:var(--bg);stroke:var(--topic-color);stroke-width:1.5}
+.empty-filter{padding:24px 10px;color:var(--muted);font-size:13px}
+@media(max-width:420px){.tag-filters{gap:4px}.tag-filter{padding:5px 7px}.outline-group{margin-left:12px}.outline-leaf{padding-left:12px;gap:8px}.time-leaf,.time-gap{padding-left:8px;padding-right:6px}}
 </style>
 </head><body><main>
+<div class="tag-filters" role="group" aria-label="按标签筛选，可多选"></div>
 <div class="controls"><button type="button" data-mode="outline" aria-pressed="true">按层级</button><button type="button" data-mode="time" aria-pressed="false">按时间</button><button type="button" id="map-refresh">更新地图</button><span class="hint">大纲视图：按话题组织，数字是原始对话顺序</span></div>
+<div class="filter-info"><span class="filter-status" role="status" aria-live="polite"></span><button type="button" id="clear-filters" hidden>清除筛选</button></div>
 <section class="source-panel" id="source-panel" aria-label="对话原文" hidden><div class="source-header"><strong>对话原文</strong><button type="button" id="source-close" aria-label="关闭原文">✕</button></div><div class="source-text" id="source-text" aria-live="polite"></div><div class="source-actions"><button type="button" id="source-copy" disabled>复制原文查找</button><span class="source-help" id="source-help">回到聊天后按 ⌘F 查找</span></div></section>
 <div class="status" id="navigation-status" role="status" aria-live="polite" hidden></div>
 <div class="status" id="refresh-status" role="status" aria-live="polite"></div><div id="map"></div><div class="status" role="status">等待本机更新任务生成地图</div>
@@ -33,10 +52,14 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
  const prefsKey=`understanding-map:panel:v1:${location.pathname}`;
  function readPrefs(){try{const value=JSON.parse(localStorage.getItem(prefsKey)||'{}');return value&&typeof value==='object'?value:{}}catch{return {}}}
  const saved=readPrefs();
+ const intentLabels={question:'询问',idea:'想法',request:'需求',feedback:'反馈',confirmation:'确认'};
+ const intentFilters=new Set(Array.isArray(saved.intentFilters)?saved.intentFilters.filter(key=>Object.hasOwn(intentLabels,key)):[]);
+ const expandedGaps=new Set(Array.isArray(saved.expandedGaps)?saved.expandedGaps.filter(key=>typeof key==='string'):[]);
+ let graphObserver=null;
  let mode=saved.mode==='time'?'time':'outline',nodes=[],topics=[],last='',hasData=false,selectedId=typeof saved.selectedId==='string'?saved.selectedId:null,selectedSource='',nativeMode={enabled:false,mode:'native'};
  let restoreSource=Boolean(developmentMode&&saved.sourceOpen&&selectedId),restoreScroll=Number.isFinite(saved.scrollY)?Math.max(0,saved.scrollY):0,initialRender=true,scrollTimer=null;
  const collapsed=new Set(Array.isArray(saved.collapsed)?saved.collapsed.filter(x=>typeof x==='string'):[]);
- function savePrefs(){try{localStorage.setItem(prefsKey,JSON.stringify({mode,collapsed:[...collapsed],selectedId,sourceOpen:!sourcePanel.hidden,scrollY:Math.max(0,window.scrollY||0)}))}catch{}}
+ function savePrefs(){try{localStorage.setItem(prefsKey,JSON.stringify({mode,collapsed:[...collapsed],intentFilters:[...intentFilters],expandedGaps:[...expandedGaps],selectedId,sourceOpen:!sourcePanel.hidden,scrollY:Math.max(0,window.scrollY||0)}))}catch{}}
  function configureGroup(group,key){group.open=!collapsed.has(key);group.addEventListener('toggle',()=>{if(group.open)collapsed.delete(key);else collapsed.add(key);savePrefs()})}
  function syncSelection(){out.querySelectorAll('[data-node-id]').forEach(el=>el.setAttribute('aria-pressed',String(el.getAttribute('data-node-id')===selectedId)))}
  function actionLabel(){
@@ -199,7 +222,29 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
   element.dataset.topicLevel=String(level);
   element.style.setProperty('--topic-color',`light-dark(hsl(216 78% ${lightness}%),hsl(216 85% ${darkLightness}%))`);
  }
- const intentLabels={question:'询问',idea:'想法',request:'需求',feedback:'反馈',confirmation:'确认'};
+ function matchesIntent(node){return intentFilters.size===0||intentFilters.has(node.intent)}
+ function renderFilters(){
+  const users=nodes.filter(n=>n.role==='user'),bar=document.querySelector('.tag-filters');
+  const counts=new Map(Object.keys(intentLabels).map(key=>[key,0]));
+  users.forEach(n=>{if(counts.has(n.intent))counts.set(n.intent,counts.get(n.intent)+1)});
+  bar.replaceChildren();
+  for(const key of ['all',...Object.keys(intentLabels)]){
+   const button=document.createElement('button');button.type='button';button.className='tag-filter';button.dataset.intentFilter=key;
+   button.setAttribute('aria-pressed',String(key==='all'?intentFilters.size===0:intentFilters.has(key)));
+   const count=key==='all'?users.length:counts.get(key),label=key==='all'?'全部':intentLabels[key];
+   button.setAttribute('aria-label',`${label}，${count} 条发言${key==='all'?'，清除筛选':'，可多选'}`);
+   button.append(document.createTextNode(label));const total=document.createElement('span');total.className='filter-count';total.textContent=String(count);button.append(total);bar.append(button);
+  }
+  document.querySelector('.filter-status').textContent=`显示 ${users.filter(matchesIntent).length} / ${users.length} 条发言`;
+  document.querySelector('#clear-filters').hidden=intentFilters.size===0;
+ }
+ function changeFilter(key){
+  if(key==='all')intentFilters.clear();else if(Object.hasOwn(intentLabels,key)){if(intentFilters.has(key))intentFilters.delete(key);else intentFilters.add(key)}else return;
+  expandedGaps.clear();showNavigationStatus('');
+  const selected=nodes.find(n=>n.id===selectedId);
+  if(selected&&!matchesIntent(selected))sourcePanel.hidden=true;
+  render();savePrefs();
+ }
  function makeLabel(node){
   const label=document.createElement('span');
   label.className='node-label';
@@ -225,39 +270,79 @@ button.node-button{width:100%;text-align:left;color:var(--fg);background:transpa
    if(node.role==='user')timeNodes.push({...node,parent_ids:visibleParents});
    userAncestors.set(node.id,node.role==='user'?[node.id]:visibleParents);
   });
-  const index=new Map(timeNodes.map((n,i)=>[n.id,i]));
+  const entries=[],validGaps=new Set();let pending=[];
+  function flushGap(){
+   if(!pending.length)return;
+   const key=JSON.stringify([pending[0].node.id,pending[pending.length-1].node.id]);validGaps.add(key);
+   entries.push({kind:'gap',key,items:pending});
+   if(expandedGaps.has(key))pending.forEach(entry=>entries.push({...entry,context:true}));
+   pending=[];
+  }
+  timeNodes.forEach((node,index)=>{const entry={kind:'node',node,ordinal:index+1};if(matchesIntent(node)){flushGap();entries.push(entry)}else pending.push(entry)});flushGap();
+  for(const key of expandedGaps)if(!validGaps.has(key))expandedGaps.delete(key);
   const topicLabels=new Map(topics.filter(t=>t&&typeof t.id==='string'&&typeof t.label==='string').map(t=>[t.id,t.label]));
   const lanes=timeNodes.map(node=>topicLevel(node.topic_id)??0);
-  const width=Math.max(64,32+22*Math.max(0,...lanes)),height=48*timeNodes.length,ns='http://www.w3.org/2000/svg';
-  const wrap=document.createElement('div');wrap.className='time-wrap';const layout=document.createElement('div');layout.className='time-layout';layout.style.gridTemplateColumns=`${width}px auto`;
-  const svg=document.createElementNS(ns,'svg');svg.classList.add('time-graph');svg.setAttribute('width',String(width));svg.setAttribute('height',String(height));svg.setAttribute('viewBox',`0 0 ${width} ${height}`);svg.setAttribute('role','img');svg.setAttribute('aria-label','按时间排列的层级轨道，越靠右层级越深、蓝色越浅，虚线表示时间顺序');
-  timeNodes.slice(1).forEach((node,offset)=>{
-   const i=offset+1,path=document.createElementNS(ns,'path');
-   path.classList.add('time-order');
-   path.setAttribute('d',`M${14+lanes[i-1]*22} ${24+(i-1)*48} L${14+lanes[i]*22} ${24+i*48}`);
-   path.setAttribute('fill','none');path.setAttribute('stroke','var(--muted)');
-   path.setAttribute('stroke-opacity','.45');path.setAttribute('stroke-dasharray','3 4');
-   svg.append(path);
-  });
-  timeNodes.forEach((n,i)=>{const parents=(Array.isArray(n.parent_ids)?n.parent_ids:[]).map(id=>index.get(id)).filter(j=>Number.isInteger(j)&&j<i);parents.forEach(j=>{const x1=14+lanes[j]*22,x2=14+lanes[i]*22,y1=24+j*48,y2=24+i*48,r=Math.min(12,Math.abs(x2-x1),y2-y1),sign=Math.sign(x2-x1),p=document.createElementNS(ns,'path');p.classList.add('message-relation');p.setAttribute('d',x1===x2?`M${x1} ${y1} V${y2}`:`M${x1} ${y1} V${y2-r} Q${x1} ${y2} ${x1+sign*r} ${y2} H${x2}`);p.setAttribute('fill','none');applyTopicColor(p,n.topic_id);p.setAttribute('stroke','var(--topic-color)');p.setAttribute('stroke-opacity','.85');p.setAttribute('stroke-width','1.5');svg.append(p)})});
-  timeNodes.forEach((n,i)=>{const c=document.createElementNS(ns,'circle');c.setAttribute('cx',14+lanes[i]*22);c.setAttribute('cy',24+i*48);c.setAttribute('r','4');applyTopicColor(c,n.topic_id);c.setAttribute('fill','var(--topic-color)');c.setAttribute('data-node-id',n.id);c.setAttribute('aria-pressed',String(n.id===selectedId));const title=document.createElementNS(ns,'title');title.textContent=topicLabels.has(n.topic_id)?`${topicLabels.get(n.topic_id)} · 第 ${Number(c.dataset.topicLevel)+1} 层`:'待归类';c.append(title);c.addEventListener('click',()=>selectNode(n));svg.append(c)});
-  const list=document.createElement('div');list.className='time-rows';list.style.gridTemplateRows=`repeat(${timeNodes.length},48px)`;timeNodes.forEach((n,i)=>list.append(timeLeaf(n,i)));layout.append(svg,list);wrap.append(layout);out.append(wrap);
+  const width=Math.max(64,32+22*Math.max(0,...lanes)),ns='http://www.w3.org/2000/svg';
+  const wrap=document.createElement('div');wrap.className='time-wrap';const layout=document.createElement('div');layout.className='time-layout';layout.style.gridTemplateColumns=`${width}px minmax(0,1fr)`;layout.style.minWidth=`${width+180}px`;
+  const svg=document.createElementNS(ns,'svg');svg.classList.add('time-graph');svg.setAttribute('width',String(width));svg.setAttribute('role','img');svg.setAttribute('aria-label','按时间排列的原始层级轨道，虚线表示时间顺序，实线表示真实承接，折叠段不代表父节点');
+  const list=document.createElement('div');list.className='time-rows';
+  entries.forEach(entry=>{
+   let row;
+   if(entry.kind==='node'){
+    row=timeLeaf(entry.node,entry.ordinal-1);
+    if(entry.context){row.classList.add('filtered-context');row.title='未匹配标签的发言，展开后仍可定位原文'}
+   }else{
+    row=document.createElement('button');row.type='button';row.className='time-gap';row.dataset.gapId=entry.key;const open=expandedGaps.has(entry.key);
+    row.setAttribute('aria-expanded',String(open));
+    const first=String(entry.items[0].ordinal).padStart(2,'0'),last=String(entry.items[entry.items.length-1].ordinal).padStart(2,'0');
+    row.append(document.createTextNode(`${open?'⌄ 收起':'› 已隐藏'} ${entry.items.length} 条`));
+    const range=document.createElement('span');range.className='time-gap-range';range.textContent=first===last?first:`${first}–${last}`;row.append(range);
+    row.setAttribute('aria-label',`${open?'收起':'展开'} ${entry.items.length} 条未匹配的发言，原始序号 ${range.textContent}`);
+    row.addEventListener('click',()=>{if(expandedGaps.has(entry.key))expandedGaps.delete(entry.key);else expandedGaps.add(entry.key);render();savePrefs();out.querySelectorAll('.time-gap').forEach(button=>{if(button.dataset.gapId===entry.key)button.focus()})});
+   }
+   entry.element=row;list.append(row);
+  });layout.append(svg,list);wrap.append(layout);out.append(wrap);
+  function updateGraph(){
+   if(!svg.isConnected)return;
+   let height=0;entries.forEach(entry=>{const rowHeight=entry.element.getBoundingClientRect().height||(entry.kind==='gap'?32:48);entry.y=height+rowHeight/2;height+=rowHeight});
+   svg.replaceChildren();svg.setAttribute('height',String(height));svg.setAttribute('viewBox',`0 0 ${width} ${Math.max(1,height)}`);
+   const visible=entries.filter(entry=>entry.kind==='node'),index=new Map(visible.map(entry=>[entry.node.id,entry]));
+   const x=entry=>14+(topicLevel(entry.node.topic_id)??0)*22;
+   visible.slice(1).forEach((entry,i)=>{const previous=visible[i],path=document.createElementNS(ns,'path');path.classList.add('time-order');path.dataset.skippedCount=String(entry.ordinal-previous.ordinal-1);path.setAttribute('d',`M${x(previous)} ${previous.y} L${x(entry)} ${entry.y}`);path.setAttribute('fill','none');path.setAttribute('stroke','var(--muted)');path.setAttribute('stroke-opacity','.45');path.setAttribute('stroke-dasharray','3 4');svg.append(path)});
+   visible.forEach(entry=>{
+    const n=entry.node;
+    for(const parentId of n.parent_ids){const parent=index.get(parentId);if(!parent||parent.ordinal>=entry.ordinal)continue;
+     const x1=x(parent),x2=x(entry),y1=parent.y,y2=entry.y,r=Math.min(12,Math.abs(x2-x1),y2-y1),sign=Math.sign(x2-x1),p=document.createElementNS(ns,'path');p.classList.add('message-relation');p.dataset.parentId=parentId;p.dataset.childId=n.id;
+     p.setAttribute('d',x1===x2?`M${x1} ${y1} V${y2}`:`M${x1} ${y1} V${y2-r} Q${x1} ${y2} ${x1+sign*r} ${y2} H${x2}`);p.setAttribute('fill','none');applyTopicColor(p,n.topic_id);p.setAttribute('stroke','var(--topic-color)');p.setAttribute('stroke-opacity',entry.context||parent.context?'.35':'.85');p.setAttribute('stroke-width','1.5');svg.append(p);
+    }
+   });
+   visible.forEach(entry=>{const n=entry.node,c=document.createElementNS(ns,'circle');c.setAttribute('cx',String(x(entry)));c.setAttribute('cy',String(entry.y));c.setAttribute('r','4');applyTopicColor(c,n.topic_id);c.setAttribute('fill','var(--topic-color)');c.dataset.nodeId=n.id;c.setAttribute('aria-pressed',String(n.id===selectedId));if(entry.context)c.classList.add('filtered-context');const title=document.createElementNS(ns,'title');title.textContent=topicLabels.has(n.topic_id)?`${topicLabels.get(n.topic_id)} · 第 ${Number(c.dataset.topicLevel)+1} 层`:'待归类';c.append(title);c.addEventListener('click',()=>selectNode(n));svg.append(c)});
+  }
+  updateGraph();if(typeof ResizeObserver==='function'){graphObserver=new ResizeObserver(updateGraph);graphObserver.observe(list)}
  }
  function drawOutline(){
   const root=document.createElement('details');root.className='outline-group';configureGroup(root,'root');const rootTitle=document.createElement('summary');rootTitle.textContent='Understanding Map';root.append(rootTitle);
   const validTopics=topics.filter(t=>t&&typeof t.id==='string'&&typeof t.label==='string');const byId=new Map(validTopics.map(t=>[t.id,t]));const children=new Map(),items=new Map();
   validTopics.forEach(t=>{const parent=typeof t.parent_id==='string'&&byId.has(t.parent_id)?t.parent_id:null;if(!children.has(parent))children.set(parent,[]);children.get(parent).push(t)});
-  let number=0;const turnNumbers=new Map(),unassigned=[];
-  nodes.forEach(n=>{if(n.role!=='user')return;if(!turnNumbers.has(n.turn_id))turnNumbers.set(n.turn_id,++number);const entry={node:n,number:turnNumbers.get(n.turn_id)};if(typeof n.topic_id==='string'&&byId.has(n.topic_id)){if(!items.has(n.topic_id))items.set(n.topic_id,[]);items.get(n.topic_id).push(entry)}else unassigned.push(entry)});
+  let number=0;const unassigned=[];
+  nodes.forEach(n=>{if(n.role!=='user')return;number++;if(!matchesIntent(n))return;const entry={node:n,number};if(typeof n.topic_id==='string'&&byId.has(n.topic_id)){if(!items.has(n.topic_id))items.set(n.topic_id,[]);items.get(n.topic_id).push(entry)}else unassigned.push(entry)});
   function appendLeaf(container,entry){const row=makeButton(entry.node,'outline-leaf');const num=document.createElement('span');num.className='num';num.textContent=String(entry.number).padStart(2,'0');const label=makeLabel(entry.node);const action=document.createElement('span');action.className='node-action';action.textContent=actionLabel();row.append(num,label,action);container.append(row)}
   const visited=new Set();function appendTopic(topic,container){if(visited.has(topic.id))return;visited.add(topic.id);const group=document.createElement('details');group.className='outline-group';configureGroup(group,`topic:${topic.id}`);const title=document.createElement('summary');title.textContent=topic.label;title.dataset.topicId=topic.id;applyTopicColor(title,topic.id);group.append(title);(items.get(topic.id)||[]).forEach(e=>appendLeaf(group,e));(children.get(topic.id)||[]).forEach(child=>appendTopic(child,group));if(group.children.length>1)container.append(group)}
   (children.get(null)||[]).forEach(topic=>appendTopic(topic,root));validTopics.forEach(topic=>{if(!visited.has(topic.id))appendTopic(topic,root)});
   if(unassigned.length){const group=document.createElement('details');group.className='outline-group';configureGroup(group,'unassigned');const title=document.createElement('summary');title.textContent='待归类';group.append(title);unassigned.forEach(e=>appendLeaf(group,e));root.append(group)}out.append(root);
  }
- function render(){if(selectedId&&!nodes.some(n=>n.id===selectedId&&n.role==='user')){selectedId=null;selectedSource='';sourcePanel.hidden=true;savePrefs()}out.replaceChildren();if(mode==='time'){hint.textContent='顶层靠左、深蓝，子层向右、颜色变浅。虚线表示时间顺序，实线表示已记录的承接';drawTime()}else{hint.textContent='深蓝为顶层，层级越深蓝色越浅，数字表示对话顺序';drawOutline()}}
+ function render(){
+  if(graphObserver){graphObserver.disconnect();graphObserver=null}
+  if(selectedId&&!nodes.some(n=>n.id===selectedId&&n.role==='user')){selectedId=null;selectedSource='';sourcePanel.hidden=true;savePrefs()}
+  renderFilters();out.replaceChildren();
+  if(mode==='time'){hint.textContent='顶层靠左、深蓝，子层向右、颜色变浅。虚线表示时间顺序，实线表示已记录的承接';drawTime()}
+  else{hint.textContent='深蓝为顶层，层级越深蓝色越浅，数字表示对话顺序';drawOutline();if(nodes.some(n=>n.role==='user')&&!nodes.some(n=>n.role==='user'&&matchesIntent(n))){const empty=document.createElement('div');empty.className='empty-filter';empty.textContent='没有匹配的发言，可更换标签或清除筛选';out.replaceChildren(empty)}}
+ }
  function syncMode(){document.querySelectorAll('[data-mode]').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.mode===mode)))}
  syncMode();
  document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{mode=b.dataset.mode;syncMode();savePrefs();render()}));
+ document.querySelector('.tag-filters').addEventListener('click',event=>{const button=event.target.closest('[data-intent-filter]');if(!button)return;const key=button.dataset.intentFilter;changeFilter(key);document.querySelectorAll('[data-intent-filter]').forEach(item=>{if(item.dataset.intentFilter===key)item.focus()})});
+ document.querySelector('#clear-filters').addEventListener('click',()=>{changeFilter('all');document.querySelector('[data-intent-filter=all]').focus()});
  document.querySelector('#source-close').addEventListener('click',()=>{selectedId=null;selectedSource='';sourcePanel.hidden=true;syncSelection();savePrefs()});
  sourceCopy.addEventListener('click',async()=>{try{if(!selectedSource||!navigator.clipboard)throw Error('unavailable');await navigator.clipboard.writeText(selectedSource.slice(0,60));sourceHelp.textContent='已复制，回到聊天后按 ⌘F 粘贴查找'}catch{sourceHelp.textContent='复制失败，请选中原文手动复制'}});
  async function refresh(){try{const r=await fetch('map-view.json',{cache:'no-store'});if(!r.ok)throw Error('unavailable');const raw=await r.text();if(raw===last)return;const v=JSON.parse(raw);if(!Array.isArray(v.nodes))throw Error('invalid');nodes=v.nodes.filter(n=>n&&typeof n.id==='string'&&typeof n.summary==='string');topics=Array.isArray(v.topics)?v.topics:[];last=raw;hasData=true;status.textContent=`已载入 ${new Set(nodes.filter(n=>n.role==='user').map(n=>n.turn_id)).size} 轮对话 · 打开或刷新时整理新增消息`;render();if(initialRender){initialRender=false;if(restoreSource){restoreSource=false;const selected=nodes.find(n=>n.id===selectedId);if(selected)selectNode(selected,false)}if(restoreScroll>0)requestAnimationFrame(()=>window.scrollTo(0,restoreScroll))}}catch(error){status.textContent=error.code?error.message:(hasData?'地图服务暂不可用，保留上次的内容':'等待本机更新任务生成地图')}}

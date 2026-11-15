@@ -1,6 +1,6 @@
 {
   "name": "understanding-map",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "description": "在聊天侧边查看理解地图，按层级或时间回看，并点击定位原文。",
   "author": {
     "name": "Understanding Map"

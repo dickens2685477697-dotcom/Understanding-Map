@@ -1,6 +1,6 @@
 {
   "name": "@local/understanding-map-deepseek",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "private": true,
   "description": "Understanding Map for DeepSeek Harness",
   "type": "module",
@@ -19,7 +19,7 @@
     "icon.svg"
   ],
   "scripts": {
-    "test": "node --test core.test.js"
+    "test": "node --test core.test.js client.test.js"
   },
   "dsh": {
     "bundle": {

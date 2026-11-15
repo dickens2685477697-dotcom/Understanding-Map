@@ -16,6 +16,7 @@ validation/*-private/
 **/map-view.json
 **/map-view.seed.json
 validation/understanding-map/releases/
+deepseek-harness/releases/
 *.app/
 *.exe
 *.dSYM/

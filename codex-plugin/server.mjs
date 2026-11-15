@@ -14,7 +14,7 @@ const panelHtml = await readFile(join(root, "dist/panel.html"), "utf8");
 const panelRevision = createHash("sha256").update(panelHtml).digest("hex").slice(0, 12);
 const resourceUri = `ui://understanding-map/panel-${panelRevision}.html`;
 const worker = new MapWorker(root);
-const server = new McpServer({ name: "understanding-map", title: "Understanding Map", version: "0.4.5" });
+const server = new McpServer({ name: "understanding-map", title: "Understanding Map", version: "0.5.0" });
 
 function toolError(error) {
   return { content: [{ type: "text", text: error.message }], isError: true,
